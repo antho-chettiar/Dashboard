@@ -1,0 +1,116 @@
+export const mockArtists = [
+  { id: '1', name: 'Arijit Singh',    genre: 'Bollywood', nationality: 'Indian',
+    photo: 'https://i.pravatar.cc/150?img=1',
+    followers: { instagram: 8200000, youtube: 12400000, spotify: 6100000 },
+    rog: { instagram: 2.4, youtube: 1.8, spotify: 3.1 } },
+
+  { id: '2', name: 'Dua Lipa',        genre: 'Pop', nationality: 'British',
+    photo: 'https://i.pravatar.cc/150?img=2',
+    followers: { instagram: 87000000, youtube: 24000000, spotify: 41000000 },
+    rog: { instagram: 0.8, youtube: 1.2, spotify: 1.5 } },
+
+  { id: '3', name: 'AR Rahman',       genre: 'Classical/Fusion', nationality: 'Indian',
+    photo: 'https://i.pravatar.cc/150?img=3',
+    followers: { instagram: 4100000, youtube: 9800000, spotify: 3200000 },
+    rog: { instagram: 1.1, youtube: 0.9, spotify: 1.4 } },
+
+  { id: '4', name: 'The Weeknd',      genre: 'R&B', nationality: 'Canadian',
+    photo: 'https://i.pravatar.cc/150?img=4',
+    followers: { instagram: 34000000, youtube: 31000000, spotify: 85000000 },
+    rog: { instagram: 0.6, youtube: 0.9, spotify: 1.1 } },
+
+  { id: '5', name: 'Shreya Ghoshal',  genre: 'Bollywood', nationality: 'Indian',
+    photo: 'https://i.pravatar.cc/150?img=5',
+    followers: { instagram: 9800000, youtube: 7200000, spotify: 2800000 },
+    rog: { instagram: 1.9, youtube: 1.3, spotify: 2.2 } },
+
+  { id: '6', name: 'Ed Sheeran',      genre: 'Pop', nationality: 'British',
+    photo: 'https://i.pravatar.cc/150?img=6',
+    followers: { instagram: 44000000, youtube: 55000000, spotify: 92000000 },
+    rog: { instagram: 0.4, youtube: 0.7, spotify: 0.9 } },
+]
+
+export const mockConcerts = [
+  { id: 'c1', artist: 'Arijit Singh',   name: 'Arijit Live 2024',
+    date: '2024-12-15', city: 'Mumbai',    state: 'Maharashtra', country: 'India',
+    venue: 'MMRDA Grounds',  capacity: 50000, tickets_sold: 47200,
+    avg_ticket_price: 2800,  total_revenue: 132160000,
+    lat: 19.0760, lng: 72.8777, sponsors: ['JioSaavn', 'Pepsi'] },
+
+  { id: 'c2', artist: 'Dua Lipa',        name: 'Future Nostalgia Tour',
+    date: '2024-11-20', city: 'Delhi',     state: 'Delhi',       country: 'India',
+    venue: 'Jawaharlal Nehru Stadium', capacity: 75000, tickets_sold: 71000,
+    avg_ticket_price: 5500,  total_revenue: 390500000,
+    lat: 28.7041, lng: 77.1025, sponsors: ['BookMyShow', 'Spotify'] },
+
+  { id: 'c3', artist: 'AR Rahman',       name: 'Symphony of Life',
+    date: '2024-10-05', city: 'Chennai',   state: 'Tamil Nadu',  country: 'India',
+    venue: 'YMCA Grounds',   capacity: 30000, tickets_sold: 29800,
+    avg_ticket_price: 3200,  total_revenue: 95360000,
+    lat: 13.0827, lng: 80.2707, sponsors: ['Amazon Music'] },
+
+  { id: 'c4', artist: 'The Weeknd',      name: 'After Hours Tour',
+    date: '2024-09-14', city: 'Bangalore', state: 'Karnataka',   country: 'India',
+    venue: 'Palace Grounds', capacity: 40000, tickets_sold: 38500,
+    avg_ticket_price: 6000,  total_revenue: 231000000,
+    lat: 12.9716, lng: 77.5946, sponsors: ['Red Bull', 'Apple Music'] },
+
+  { id: 'c5', artist: 'Shreya Ghoshal',  name: 'Shreya Live',
+    date: '2024-08-22', city: 'Kolkata',   state: 'West Bengal', country: 'India',
+    venue: 'Netaji Indoor Stadium', capacity: 12000, tickets_sold: 11800,
+    avg_ticket_price: 1800,  total_revenue: 21240000,
+    lat: 22.5726, lng: 88.3639, sponsors: ['Saregama'] },
+
+  { id: 'c6', artist: 'Ed Sheeran',      name: 'Mathematics Tour',
+    date: '2024-07-10', city: 'Mumbai',    state: 'Maharashtra', country: 'India',
+    venue: 'DY Patil Stadium', capacity: 55000, tickets_sold: 55000,
+    avg_ticket_price: 7500,  total_revenue: 412500000,
+    lat: 19.0445, lng: 73.0169, sponsors: ['Visa', 'JBL', 'BookMyShow'] },
+]
+
+export const mockFollowerTrends = [
+  { date: 'Jan', instagram: 7200000, youtube: 10800000, spotify: 5200000 },
+  { date: 'Feb', instagram: 7400000, youtube: 11000000, spotify: 5400000 },
+  { date: 'Mar', instagram: 7600000, youtube: 11300000, spotify: 5500000 },
+  { date: 'Apr', instagram: 7700000, youtube: 11500000, spotify: 5650000 },
+  { date: 'May', instagram: 7900000, youtube: 11800000, spotify: 5700000 },
+  { date: 'Jun', instagram: 8000000, youtube: 12000000, spotify: 5850000 },
+  { date: 'Jul', instagram: 8050000, youtube: 12100000, spotify: 5900000 },
+  { date: 'Aug', instagram: 8100000, youtube: 12200000, spotify: 6000000 },
+  { date: 'Sep', instagram: 8120000, youtube: 12250000, spotify: 6020000 },
+  { date: 'Oct', instagram: 8150000, youtube: 12300000, spotify: 6050000 },
+  { date: 'Nov', instagram: 8180000, youtube: 12350000, spotify: 6080000 },
+  { date: 'Dec', instagram: 8200000, youtube: 12400000, spotify: 6100000 },
+]
+
+export const mockAgeData = [
+  { name: '13–17', value: 12 },
+  { name: '18–24', value: 34 },
+  { name: '25–34', value: 28 },
+  { name: '35–44', value: 16 },
+  { name: '45+',   value: 10 },
+]
+
+export const mockGenderData = [
+  { name: 'Male',       value: 54 },
+  { name: 'Female',     value: 42 },
+  { name: 'Non-binary', value: 4  },
+]
+
+export const mockGenreData = [
+  { genre: 'Bollywood',        streams: 4200000 },
+  { genre: 'Pop',              streams: 3800000 },
+  { genre: 'R&B',              streams: 2900000 },
+  { genre: 'Classical/Fusion', streams: 1800000 },
+  { genre: 'Hip-Hop',          streams: 1600000 },
+  { genre: 'Electronic',       streams: 1100000 },
+]
+
+export const mockKpis = {
+  totalArtists:    6,
+  totalConcerts:   6,
+  ticketsSoldYTD:  253300,
+  revenueYTD:      1282760000,
+  avgRoG:          1.6,
+  topArtist:       { name: 'Ed Sheeran', streams: 92000000 },
+}
