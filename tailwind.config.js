@@ -7,20 +7,18 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          navy:   "#1A3A5C",
-          orange: "#F97316",
-          blue:   "#2563EB",
-          teal:   "#0D9488",
-          green:  "#15803D",
-          red:    "#DC2626",
-          purple: "#7C3AED",
-        }
+        indigo:  '#6366F1',
+        gold:    '#F59E0B',
+        emerald: '#10B981',
+        ruby:    '#EF4444',
       },
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        mono: ['Roboto Mono', 'monospace'],
-      }
+        display: ['Clash Display', 'sans-serif'],
+        body:    ['Satoshi', 'sans-serif'],
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+      },
     },
   },
   plugins: [],

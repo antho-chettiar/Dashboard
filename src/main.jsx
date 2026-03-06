@@ -5,6 +5,10 @@ import 'leaflet/dist/leaflet.css'
 import './index.css'
 import App from './App.jsx'
 
+// Init theme before render to avoid flash
+const savedTheme = localStorage.getItem('theme') || 'dark'
+document.documentElement.setAttribute('data-theme', savedTheme)
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

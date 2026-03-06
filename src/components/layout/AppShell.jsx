@@ -4,17 +4,11 @@ import Topbar from './Topbar'
 
 function AppShell() {
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
-      {/* Sidebar */}
+    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
       <Sidebar />
-
-      {/* Main content area */}
       <div className="flex flex-col flex-1 overflow-hidden">
-        {/* Topbar */}
         <Topbar />
-
-        {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-6 relative z-10">
           <Outlet />
         </main>
       </div>
