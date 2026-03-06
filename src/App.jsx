@@ -13,6 +13,7 @@ import MapView from './pages/MapView'
 import AdminUsers from './pages/AdminUsers'
 import AdminIngestion from './pages/AdminIngestion'
 import NotFound from './pages/NotFound'
+import Analysis from './pages/Analysis'
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="map" element={<MapView />} />
           <Route path="admin/users" element={<AdminUsers />} />
           <Route path="admin/ingestion" element={<AdminIngestion />} />
+          <Route path="analysis" element={<Analysis />} />
         </Route>
 
         {/* 404 */}
