@@ -1,144 +1,136 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Calendar, MapPin, Users, Ticket, DollarSign, TrendingUp } from 'lucide-react'
-import PageHeader from '../components/ui/PageHeader'
-import KpiCard from '../components/ui/KpiCard'
+import { ArrowLeft, Calendar, MapPin, Users, Ticket, DollarSign, TrendingUp, Star } from 'lucide-react'
 import ChartContainer from '../components/charts/ChartContainer'
 import BarChart from '../components/charts/BarChart'
 import EmptyState from '../components/ui/EmptyState'
 import { mockConcerts } from '../utils/mockData'
-import { formatNumber, formatCurrency, formatDate, sellThrough } from '../utils/formatters'
+import { formatNumber, formatCurrency, formatDate } from '../utils/formatters'
 
 function ConcertDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-
   const concert = mockConcerts.find(c => c.id === id)
 
-  if (!concert) {
-    return (
-      <div className="p-6">
-        <EmptyState title="Concert not found" subtitle="This concert does not exist." />
-      </div>
-    )
-  }
+  if (!concert) return (
+    <div className="p-6"><EmptyState title="Concert not found" subtitle="This concert does not exist." /></div>
+  )
 
-  const sellThroughPct = ((concert.tickets_sold / concert.capacity) * 100).toFixed(1)
+  const st             = ((concert.tickets_sold / concert.capacity) * 100)
   const sponsorRevenue = concert.total_revenue * 0.15
   const ticketRevenue  = concert.total_revenue - sponsorRevenue
 
-  const revenueBreakdown = [
-    { name: 'Ticket Revenue',  value: Math.round(ticketRevenue)  },
-    { name: 'Sponsor Revenue', value: Math.round(sponsorRevenue) },
+  const stColor = st >= 95 ? 'var(--accent-green)' : st >= 75 ? 'var(--accent-gold)' : 'var(--accent-red)'
+
+  const kpis = [
+    { label: 'Tickets Sold',    value: formatNumber(concert.tickets_sold), sub: `of ${formatNumber(concert.capacity)}`, icon: Ticket,      color: 'var(--accent-indigo)' },
+    { label: 'Avg Ticket Price',value: formatCurrency(concert.avg_ticket_price), sub: 'per ticket',            icon: TrendingUp,  color: 'var(--accent-gold)'   },
+    { label: 'Total Revenue',   value: formatCurrency(concert.total_revenue),    sub: 'incl. sponsors',        icon: DollarSign,  color: 'var(--accent-green)'  },
+    { label: 'Sponsors',        value: concert.sponsors.length,                  sub: 'brand partners',        icon: Star,        color: 'var(--accent-red)'    },
   ]
 
   return (
-    <div>
-      {/* Back */}
-      <button
-        onClick={() => navigate('/concerts')}
-        className="flex items-center gap-2 text-sm text-gray-500 hover:text-brand-navy mb-4 transition"
-      >
-        <ArrowLeft size={16} /> Back to Concerts
+    <div className="relative">
+      <div className="fixed top-20 right-20 w-80 h-80 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.07), transparent 70%)', filter: 'blur(40px)' }} />
+
+      <button onClick={() => navigate('/concerts')}
+        className="flex items-center gap-2 text-sm mb-5 transition-all duration-200 hover:gap-3"
+        style={{ color: 'var(--text-muted)' }}>
+        <ArrowLeft size={15} /> Back to Concerts
       </button>
 
       {/* Hero */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mb-6">
-        <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+      <div className="glass-card p-6 mb-6 animate-fade-up relative overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none"
+          style={{ background: 'radial-gradient(circle at 0% 0%, rgba(245,158,11,0.05), transparent 60%)' }} />
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-4 relative z-10">
           <div>
-            <h1 className="text-2xl font-bold text-brand-navy mb-1">{concert.name}</h1>
-            <p className="text-brand-orange font-semibold text-sm mb-3">{concert.artist}</p>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+            <h1 className="font-display font-bold text-3xl mb-1" style={{ color: 'var(--text-primary)' }}>
+              {concert.name}
+            </h1>
+            <p className="font-semibold mb-4" style={{ color: 'var(--accent-gold)' }}>{concert.artist}</p>
+            <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--text-muted)' }}>
               <div className="flex items-center gap-1.5">
-                <Calendar size={14} className="text-brand-blue" />
+                <Calendar size={13} style={{ color: 'var(--accent-indigo)' }} />
                 {formatDate(concert.date)}
               </div>
               <div className="flex items-center gap-1.5">
-                <MapPin size={14} className="text-brand-blue" />
-                {concert.venue}, {concert.city}, {concert.state}
+                <MapPin size={13} style={{ color: 'var(--accent-gold)' }} />
+                {concert.venue}, {concert.city}
               </div>
               <div className="flex items-center gap-1.5">
-                <Users size={14} className="text-brand-blue" />
+                <Users size={13} style={{ color: 'var(--accent-green)' }} />
                 Capacity: {formatNumber(concert.capacity)}
               </div>
             </div>
           </div>
 
-          {/* Sell-through badge */}
-          <div className="text-center bg-gray-50 rounded-xl px-6 py-4 border border-gray-100">
-            <p className="text-xs text-gray-400 mb-1">Sell-Through</p>
-            <p className={`text-3xl font-bold ${
-              sellThroughPct >= 95 ? 'text-green-600' :
-              sellThroughPct >= 75 ? 'text-yellow-600' : 'text-red-600'
-            }`}>
-              {sellThroughPct}%
+          {/* Sell-through ring */}
+          <div className="text-center rounded-2xl px-8 py-5 flex-shrink-0"
+            style={{ background: `${stColor}10`, border: `1px solid ${stColor}30` }}>
+            <p className="text-xs uppercase tracking-widest mb-1"
+              style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Sell-Through</p>
+            <p className="font-display font-bold text-4xl" style={{ color: stColor }}>
+              {st.toFixed(1)}%
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              {st >= 95 ? '🔥 Sold Out' : st >= 75 ? '✅ Strong' : '⚠️ Moderate'}
             </p>
           </div>
         </div>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiCard
-          title="Tickets Sold"
-          value={formatNumber(concert.tickets_sold)}
-          subtitle={`of ${formatNumber(concert.capacity)} capacity`}
-          icon={Ticket}
-          iconBg="bg-blue-50"
-        />
-        <KpiCard
-          title="Avg. Ticket Price"
-          value={formatCurrency(concert.avg_ticket_price)}
-          subtitle="Per ticket"
-          icon={TrendingUp}
-          iconBg="bg-orange-50"
-        />
-        <KpiCard
-          title="Total Revenue"
-          value={formatCurrency(concert.total_revenue)}
-          subtitle="Including sponsors"
-          icon={DollarSign}
-          iconBg="bg-green-50"
-        />
-        <KpiCard
-          title="Sponsors"
-          value={concert.sponsors.length}
-          subtitle="Brand partners"
-          icon={Users}
-          iconBg="bg-purple-50"
-        />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+        {kpis.map((k, i) => (
+          <div key={i} className="glass-card p-4 animate-fade-up"
+            style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both', opacity: 0 }}>
+            <div className="flex items-center gap-1.5 mb-2">
+              <k.icon size={13} style={{ color: k.color }} />
+              <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                {k.label}
+              </p>
+            </div>
+            <p className="font-display font-bold text-xl" style={{ color: 'var(--text-primary)' }}>{k.value}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{k.sub}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Revenue Breakdown + Sponsors */}
+      {/* Revenue + Sponsors */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
-        <ChartContainer
-          title="Revenue Breakdown"
-          subtitle="Ticket vs. sponsor revenue"
-        >
+        <ChartContainer title="Revenue Breakdown" subtitle="Ticket vs sponsor revenue" delay={100}>
           <BarChart
-            data={revenueBreakdown}
-            xKey="name"
-            layout="horizontal"
-            bars={[{ key: 'value', label: 'Revenue (INR)', color: '#2563EB' }]}
+            data={[
+              { name: 'Ticket Revenue',  value: Math.round(ticketRevenue)  },
+              { name: 'Sponsor Revenue', value: Math.round(sponsorRevenue) },
+            ]}
+            xKey="name" layout="horizontal"
+            bars={[{ key: 'value', label: 'Revenue (INR)', color: '#818CF8' }]}
             height={220}
           />
         </ChartContainer>
 
-        {/* Sponsors */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-          <h3 className="text-sm font-semibold text-brand-navy mb-4">Sponsors</h3>
+        <div className="glass-card p-5 animate-fade-up" style={{ animationDelay: '150ms', animationFillMode: 'both', opacity: 0 }}>
+          <h3 className="font-display font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>
+            Sponsors
+          </h3>
           {concert.sponsors.length === 0 ? (
-            <EmptyState title="No sponsors" subtitle="No sponsor data available." />
+            <EmptyState title="No sponsors" />
           ) : (
             <div className="space-y-3">
               {concert.sponsors.map((sponsor, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={i} className="flex items-center justify-between p-3 rounded-xl"
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-brand-navy rounded-lg flex items-center justify-center text-white text-xs font-bold">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold"
+                      style={{ background: 'linear-gradient(135deg, #6366F1, #818CF8)' }}>
                       {sponsor[0]}
                     </div>
-                    <span className="text-sm font-medium text-gray-700">{sponsor}</span>
+                    <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{sponsor}</span>
                   </div>
-                  <span className="text-xs text-gray-400 bg-white border border-gray-200 px-2.5 py-1 rounded-full">
+                  <span className="text-xs px-2.5 py-1 rounded-full font-medium"
+                    style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent-indigo)' }}>
                     Brand Partner
                   </span>
                 </div>
@@ -149,14 +141,16 @@ function ConcertDetail() {
       </div>
 
       {/* Location */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-        <h3 className="text-sm font-semibold text-brand-navy mb-3">Location</h3>
-        <div className="flex items-center gap-3 text-sm text-gray-600">
-          <MapPin size={16} className="text-brand-orange" />
-          <span>{concert.venue}, {concert.city}, {concert.state}, {concert.country}</span>
+      <div className="glass-card p-5 animate-fade-up" style={{ animationDelay: '200ms', animationFillMode: 'both', opacity: 0 }}>
+        <h3 className="font-display font-semibold text-sm mb-3" style={{ color: 'var(--text-primary)' }}>Location</h3>
+        <div className="flex items-center gap-3 mb-3">
+          <MapPin size={15} style={{ color: 'var(--accent-gold)' }} />
+          <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            {concert.venue}, {concert.city}, {concert.state}, {concert.country}
+          </span>
         </div>
-        <div className="mt-3 bg-gray-50 rounded-lg p-3 text-xs text-gray-400">
-          <span className="font-mono">Lat: {concert.lat}  |  Lng: {concert.lng}</span>
+        <div className="p-3 rounded-xl font-mono text-xs" style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
+          Lat: {concert.lat} · Lng: {concert.lng}
         </div>
       </div>
     </div>

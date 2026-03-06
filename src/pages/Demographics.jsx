@@ -8,8 +8,7 @@ import { formatNumber } from '../utils/formatters'
 
 const PLATFORMS = ['All Platforms', 'Instagram', 'YouTube', 'Spotify']
 
-// City-level audience data
-const cityAudienceData = [
+const cityData = [
   { city: 'Mumbai',    audience: 4200000 },
   { city: 'Delhi',     audience: 3800000 },
   { city: 'Bangalore', audience: 2900000 },
@@ -20,178 +19,106 @@ const cityAudienceData = [
   { city: 'Ahmedabad', audience: 750000  },
 ]
 
+const summaryStats = [
+  { label: 'Largest Age Group', value: '18–24',    sub: '34% of audience'               },
+  { label: 'Dominant Gender',   value: 'Male',      sub: '54% of audience'               },
+  { label: 'Top City',          value: 'Mumbai',    sub: formatNumber(4200000) + ' listeners' },
+  { label: 'Top Genre',         value: 'Bollywood', sub: formatNumber(4200000) + ' streams'   },
+]
+
 function Demographics() {
-  const [selectedArtist, setArtist]     = useState('all')
+  const [selectedArtist, setArtist]   = useState('all')
   const [selectedPlatform, setPlatform] = useState('All Platforms')
 
   return (
-    <div>
-      <PageHeader
-        title="Demographics"
-        subtitle="Audience breakdown by age, gender, geography and genre"
-      />
+    <div className="relative">
+      <div className="fixed bottom-20 left-72 w-80 h-80 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.06), transparent 70%)', filter: 'blur(40px)' }} />
+
+      <PageHeader title="Demographics" subtitle="Audience breakdown by age, gender, geography and genre" />
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
-        {/* Artist Filter */}
-        <select
-          value={selectedArtist}
-          onChange={e => setArtist(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-white text-gray-600 outline-none shadow-sm"
-        >
+        <select value={selectedArtist} onChange={e => setArtist(e.target.value)}
+          className="text-sm rounded-xl px-4 py-3 outline-none"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'Satoshi' }}>
           <option value="all">All Artists</option>
-          {mockArtists.map(a => (
-            <option key={a.id} value={a.id}>{a.name}</option>
-          ))}
+          {mockArtists.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
         </select>
-
-        {/* Platform Filter */}
         <div className="flex gap-2 flex-wrap">
           {PLATFORMS.map(p => (
-            <button
-              key={p}
-              onClick={() => setPlatform(p)}
-              className={`text-xs px-3 py-1.5 rounded-full font-medium transition-all ${
-                selectedPlatform === p
-                  ? 'bg-brand-navy text-white'
-                  : 'bg-white border border-gray-200 text-gray-500 hover:border-brand-navy hover:text-brand-navy'
-              }`}
-            >
+            <button key={p} onClick={() => setPlatform(p)}
+              className="text-xs px-3 py-1.5 rounded-xl font-medium transition-all duration-200"
+              style={selectedPlatform === p ? {
+                background: 'linear-gradient(135deg, #10B981, #34D399)',
+                color: '#fff', boxShadow: '0 4px 12px rgba(16,185,129,0.3)'
+              } : {
+                background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border)'
+              }}>
               {p}
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── Row 1: Age + Gender ── */}
+      {/* Row 1: Age + Gender */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <ChartContainer
-          title="Audience Age Distribution"
-          subtitle="% of total audience by age group"
-        >
-          <PieChart
-            data={mockAgeData}
-            nameKey="name"
-            valueKey="value"
-            innerRadius={60}
-            height={280}
-          />
-          {/* Data Table below chart */}
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <table className="w-full text-xs">
-              <thead>
-                <tr>
-                  <th className="text-left text-gray-400 font-semibold pb-2">Age Group</th>
-                  <th className="text-right text-gray-400 font-semibold pb-2">Share</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {mockAgeData.map((row, i) => (
-                  <tr key={i}>
-                    <td className="py-1.5 text-gray-600 font-medium">{row.name}</td>
-                    <td className="py-1.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-16 bg-gray-100 rounded-full h-1.5">
-                          <div
-                            className="h-1.5 rounded-full bg-brand-blue"
-                            style={{ width: `${row.value}%` }}
-                          />
-                        </div>
-                        <span className="text-gray-700 font-semibold w-8 text-right">{row.value}%</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <ChartContainer title="Audience Age Distribution" subtitle="% of total audience by age group" delay={0}>
+          <PieChart data={mockAgeData} nameKey="name" valueKey="value" innerRadius={60} height={260} />
+          <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+            {mockAgeData.map((row, i) => (
+              <div key={i} className="flex items-center justify-between py-1.5">
+                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{row.name}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${row.value}%`, background: 'var(--accent-indigo)' }} />
+                  </div>
+                  <span className="text-xs font-bold w-8 text-right" style={{ color: 'var(--text-primary)' }}>{row.value}%</span>
+                </div>
+              </div>
+            ))}
           </div>
         </ChartContainer>
 
-        <ChartContainer
-          title="Gender Distribution"
-          subtitle="% of total audience by gender"
-        >
-          <PieChart
-            data={mockGenderData}
-            nameKey="name"
-            valueKey="value"
-            innerRadius={60}
-            height={280}
-          />
-          {/* Data Table */}
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <table className="w-full text-xs">
-              <thead>
-                <tr>
-                  <th className="text-left text-gray-400 font-semibold pb-2">Gender</th>
-                  <th className="text-right text-gray-400 font-semibold pb-2">Share</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {mockGenderData.map((row, i) => (
-                  <tr key={i}>
-                    <td className="py-1.5 text-gray-600 font-medium">{row.name}</td>
-                    <td className="py-1.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-16 bg-gray-100 rounded-full h-1.5">
-                          <div
-                            className="h-1.5 rounded-full bg-brand-orange"
-                            style={{ width: `${row.value}%` }}
-                          />
-                        </div>
-                        <span className="text-gray-700 font-semibold w-8 text-right">{row.value}%</span>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <ChartContainer title="Gender Distribution" subtitle="% of total audience by gender" delay={80}>
+          <PieChart data={mockGenderData} nameKey="name" valueKey="value" innerRadius={60} height={260} />
+          <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+            {mockGenderData.map((row, i) => (
+              <div key={i} className="flex items-center justify-between py-1.5">
+                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{row.name}</span>
+                <div className="flex items-center gap-2">
+                  <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                    <div className="h-full rounded-full" style={{ width: `${row.value}%`, background: 'var(--accent-gold)' }} />
+                  </div>
+                  <span className="text-xs font-bold w-8 text-right" style={{ color: 'var(--text-primary)' }}>{row.value}%</span>
+                </div>
+              </div>
+            ))}
           </div>
         </ChartContainer>
       </div>
 
-      {/* ── Row 2: Genre + City ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <ChartContainer
-          title="Genre Popularity"
-          subtitle="Total streams by music genre"
-        >
-          <BarChart
-            data={mockGenreData}
-            xKey="genre"
-            layout="vertical"
-            bars={[{ key: 'streams', label: 'Streams', color: '#2563EB' }]}
-            multiColor={true}
-            height={280}
-          />
+      {/* Row 2: Genre + City */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <ChartContainer title="Genre Popularity" subtitle="Total streams by music genre" delay={120}>
+          <BarChart data={mockGenreData} xKey="genre" layout="vertical"
+            bars={[{ key: 'streams', label: 'Streams' }]} multiColor={true} height={280} />
         </ChartContainer>
-
-        <ChartContainer
-          title="Audience by City"
-          subtitle="Top cities by listener count"
-        >
-          <BarChart
-            data={cityAudienceData}
-            xKey="city"
-            layout="vertical"
-            bars={[{ key: 'audience', label: 'Audience', color: '#0D9488' }]}
-            height={280}
-          />
+        <ChartContainer title="Audience by City" subtitle="Top cities by listener count" delay={200}>
+          <BarChart data={cityData} xKey="city" layout="vertical"
+            bars={[{ key: 'audience', label: 'Audience', color: '#34D399' }]} height={280} />
         </ChartContainer>
       </div>
 
-      {/* ── Row 3: Summary Stats ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[
-          { label: 'Largest Age Group',   value: '18–24',      sub: '34% of audience' },
-          { label: 'Dominant Gender',     value: 'Male',       sub: '54% of audience' },
-          { label: 'Top City',            value: 'Mumbai',     sub: formatNumber(4200000) + ' listeners' },
-          { label: 'Top Genre',           value: 'Bollywood',  sub: formatNumber(4200000) + ' streams'  },
-        ].map((stat, i) => (
-          <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-            <p className="text-xs text-gray-400 mb-1">{stat.label}</p>
-            <p className="text-lg font-bold text-brand-navy">{stat.value}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{stat.sub}</p>
+      {/* Summary Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {summaryStats.map((stat, i) => (
+          <div key={i} className="glass-card p-4 animate-fade-up"
+            style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both', opacity: 0 }}>
+            <p className="text-xs uppercase tracking-widest mb-1"
+              style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{stat.label}</p>
+            <p className="font-display font-bold text-xl" style={{ color: 'var(--text-primary)' }}>{stat.value}</p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{stat.sub}</p>
           </div>
         ))}
       </div>

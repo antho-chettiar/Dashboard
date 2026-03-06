@@ -22,142 +22,126 @@ function AdminUsers() {
     u.email.toLowerCase().includes(search.toLowerCase())
   )
 
-  function handleAddUser() {
+  function handleAdd() {
     if (!newUser.name || !newUser.email) return
-    setUsers(prev => [...prev, {
-      id:      prev.length + 1,
-      name:    newUser.name,
-      email:   newUser.email,
-      role:    newUser.role,
-      status:  'active',
-      joined:  new Date().toISOString().split('T')[0],
-    }])
+    setUsers(p => [...p, { id: p.length + 1, ...newUser, status: 'active', joined: new Date().toISOString().split('T')[0] }])
     setNewUser({ name: '', email: '', role: 'viewer' })
     setShowModal(false)
   }
 
   function toggleStatus(id) {
-    setUsers(prev => prev.map(u =>
-      u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u
-    ))
+    setUsers(p => p.map(u => u.id === id ? { ...u, status: u.status === 'active' ? 'inactive' : 'active' } : u))
   }
 
-  function deleteUser(id) {
-    setUsers(prev => prev.filter(u => u.id !== id))
-  }
+  function deleteUser(id) { setUsers(p => p.filter(u => u.id !== id)) }
+
+  const statCards = [
+    { label: 'Total Users', value: users.length,                                    color: 'var(--accent-indigo)' },
+    { label: 'Active',      value: users.filter(u => u.status === 'active').length, color: 'var(--accent-green)'  },
+    { label: 'Admins',      value: users.filter(u => u.role === 'admin').length,    color: 'var(--accent-gold)'   },
+    { label: 'Viewers',     value: users.filter(u => u.role === 'viewer').length,   color: 'var(--accent-indigo)' },
+  ]
 
   return (
-    <div>
-      <PageHeader
-        title="User Management"
-        subtitle={`${users.filter(u => u.status === 'active').length} active users`}
-      >
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-brand-navy text-white text-sm px-4 py-2 rounded-lg hover:bg-opacity-90 transition shadow-sm"
-        >
-          <UserPlus size={15} />
-          Add User
+    <div className="relative">
+      <PageHeader title="User Management" subtitle={`${users.filter(u => u.status === 'active').length} active users`}>
+        <button onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 text-sm px-4 py-2.5 rounded-xl font-semibold transition-all duration-200"
+          style={{ background: 'linear-gradient(135deg, #6366F1, #818CF8)', color: '#fff', boxShadow: '0 4px 16px rgba(99,102,241,0.3)' }}>
+          <UserPlus size={15} /> Add User
         </button>
       </PageHeader>
 
-      {/* Search */}
-      <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2.5 mb-6 shadow-sm max-w-md">
-        <Search size={15} className="text-gray-400" />
-        <input
-          type="text"
-          placeholder="Search users..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="text-sm text-gray-600 outline-none w-full placeholder:text-gray-400"
-        />
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        {[
-          { label: 'Total Users',    value: users.length,                                          bg: 'bg-blue-50',   text: 'text-brand-blue'   },
-          { label: 'Active',         value: users.filter(u => u.status === 'active').length,       bg: 'bg-green-50',  text: 'text-green-600'    },
-          { label: 'Admins',         value: users.filter(u => u.role === 'admin').length,          bg: 'bg-purple-50', text: 'text-purple-600'   },
-          { label: 'Viewers',        value: users.filter(u => u.role === 'viewer').length,         bg: 'bg-orange-50', text: 'text-brand-orange' },
-        ].map((stat, i) => (
-          <div key={i} className={`${stat.bg} rounded-xl p-4 border border-white`}>
-            <p className="text-xs text-gray-500 mb-1">{stat.label}</p>
-            <p className={`text-2xl font-bold ${stat.text}`}>{stat.value}</p>
+      {/* Stat Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        {statCards.map((s, i) => (
+          <div key={i} className="glass-card p-4 animate-fade-up"
+            style={{ animationDelay: `${i * 60}ms`, animationFillMode: 'both', opacity: 0 }}>
+            <p className="text-xs uppercase tracking-widest mb-1" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+              {s.label}
+            </p>
+            <p className="font-display font-bold text-3xl" style={{ color: s.color }}>{s.value}</p>
           </div>
         ))}
       </div>
 
-      {/* Users Table */}
+      {/* Search */}
+      <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-6 max-w-md"
+        style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+        <Search size={15} style={{ color: 'var(--text-muted)' }} />
+        <input type="text" placeholder="Search users..." value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="bg-transparent text-sm outline-none w-full"
+          style={{ color: 'var(--text-primary)', fontFamily: 'Satoshi' }} />
+      </div>
+
+      {/* Table */}
       {filtered.length === 0 ? (
-        <EmptyState title="No users found" subtitle="Try adjusting your search" />
+        <EmptyState title="No users found" />
       ) : (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div className="glass-card overflow-hidden animate-fade-up">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+            <thead style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
               <tr>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase px-4 py-3">User</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase px-4 py-3">Role</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase px-4 py-3">Status</th>
-                <th className="text-left text-xs font-semibold text-gray-400 uppercase px-4 py-3">Joined</th>
-                <th className="text-right text-xs font-semibold text-gray-400 uppercase px-4 py-3">Actions</th>
+                {['User', 'Role', 'Status', 'Joined', 'Actions'].map(h => (
+                  <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-widest"
+                    style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map(user => (
-                <tr key={user.id} className="hover:bg-gray-50 transition">
-                  {/* User */}
+            <tbody>
+              {filtered.map((user, i) => (
+                <tr key={user.id} style={{ borderBottom: '1px solid var(--border)' }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-brand-navy flex items-center justify-center text-white text-xs font-bold">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-sm font-bold"
+                        style={{ background: 'linear-gradient(135deg, #6366F1, #818CF8)' }}>
                         {user.name[0]}
                       </div>
                       <div>
-                        <p className="font-medium text-brand-navy">{user.name}</p>
-                        <p className="text-xs text-gray-400">{user.email}</p>
+                        <p className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>{user.name}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{user.email}</p>
                       </div>
                     </div>
                   </td>
-
-                  {/* Role */}
                   <td className="px-4 py-3">
-                    <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      user.role === 'admin'
-                        ? 'bg-purple-100 text-purple-700'
-                        : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {user.role === 'admin' ? <Shield size={11} /> : <Eye size={11} />}
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                      style={user.role === 'admin' ? {
+                        background: 'rgba(245,158,11,0.12)', color: 'var(--accent-gold)'
+                      } : {
+                        background: 'rgba(99,102,241,0.12)', color: 'var(--accent-indigo)'
+                      }}>
+                      {user.role === 'admin' ? <Shield size={10} /> : <Eye size={10} />}
                       {user.role === 'admin' ? 'Admin' : 'Viewer'}
                     </span>
                   </td>
-
-                  {/* Status */}
                   <td className="px-4 py-3">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                      user.status === 'active'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-gray-100 text-gray-500'
-                    }`}>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full"
+                      style={user.status === 'active' ? {
+                        background: 'rgba(16,185,129,0.12)', color: 'var(--accent-green)'
+                      } : {
+                        background: 'var(--border)', color: 'var(--text-muted)'
+                      }}>
                       {user.status === 'active' ? '● Active' : '○ Inactive'}
                     </span>
                   </td>
-
-                  {/* Joined */}
-                  <td className="px-4 py-3 text-gray-400 text-xs">{user.joined}</td>
-
-                  {/* Actions */}
+                  <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-muted)' }}>{user.joined}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center justify-end gap-2">
-                      <button
-                        onClick={() => toggleStatus(user.id)}
-                        className="text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:border-brand-blue hover:text-brand-blue transition"
-                      >
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => toggleStatus(user.id)}
+                        className="text-xs px-2.5 py-1.5 rounded-lg transition-all duration-200"
+                        style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'transparent' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent-indigo)'; e.currentTarget.style.color = 'var(--accent-indigo)' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                         {user.status === 'active' ? 'Deactivate' : 'Activate'}
                       </button>
-                      <button
-                        onClick={() => deleteUser(user.id)}
-                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition"
-                      >
+                      <button onClick={() => deleteUser(user.id)}
+                        className="p-1.5 rounded-lg transition-all duration-200"
+                        style={{ color: 'var(--text-muted)' }}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.1)'; e.currentTarget.style.color = 'var(--accent-red)' }}
+                        onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}>
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -169,55 +153,50 @@ function AdminUsers() {
         </div>
       )}
 
-      {/* Add User Modal */}
+      {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
-            <h2 className="text-lg font-bold text-brand-navy mb-4">Add New User</h2>
-            <div className="space-y-3">
+        <div className="fixed inset-0 flex items-center justify-center z-50"
+          style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(8px)' }}>
+          <div className="glass-card p-6 w-full max-w-md mx-4 animate-scale-in">
+            <h2 className="font-display font-bold text-xl mb-5" style={{ color: 'var(--text-primary)' }}>
+              Add New User
+            </h2>
+            <div className="space-y-4">
+              {[
+                { label: 'Full Name',      key: 'name',  type: 'text',  placeholder: 'e.g. Priya Sharma'     },
+                { label: 'Email Address',  key: 'email', type: 'email', placeholder: 'e.g. priya@company.com' },
+              ].map(field => (
+                <div key={field.key}>
+                  <label className="text-xs font-semibold uppercase tracking-widest block mb-2"
+                    style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{field.label}</label>
+                  <input type={field.type} placeholder={field.placeholder}
+                    value={newUser[field.key]}
+                    onChange={e => setNewUser(p => ({ ...p, [field.key]: e.target.value }))}
+                    className="w-full rounded-xl px-4 py-3 text-sm outline-none transition-all duration-200"
+                    style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'Satoshi' }} />
+                </div>
+              ))}
               <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Full Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Priya Sharma"
-                  value={newUser.name}
-                  onChange={e => setNewUser(p => ({ ...p, name: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-brand-blue transition"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Email Address</label>
-                <input
-                  type="email"
-                  placeholder="e.g. priya@company.com"
-                  value={newUser.email}
-                  onChange={e => setNewUser(p => ({ ...p, email: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-brand-blue transition"
-                />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 mb-1 block">Role</label>
-                <select
-                  value={newUser.role}
+                <label className="text-xs font-semibold uppercase tracking-widest block mb-2"
+                  style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Role</label>
+                <select value={newUser.role}
                   onChange={e => setNewUser(p => ({ ...p, role: e.target.value }))}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-brand-blue transition bg-white"
-                >
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none"
+                  style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'Satoshi' }}>
                   <option value="viewer">Viewer</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowModal(false)}
-                className="flex-1 border border-gray-200 text-gray-500 text-sm py-2.5 rounded-lg hover:bg-gray-50 transition"
-              >
+              <button onClick={() => setShowModal(false)}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
+                style={{ border: '1px solid var(--border)', color: 'var(--text-muted)', background: 'transparent' }}>
                 Cancel
               </button>
-              <button
-                onClick={handleAddUser}
-                className="flex-1 bg-brand-navy text-white text-sm py-2.5 rounded-lg hover:bg-opacity-90 transition"
-              >
+              <button onClick={handleAdd}
+                className="flex-1 py-3 rounded-xl text-sm font-semibold transition-all duration-200"
+                style={{ background: 'linear-gradient(135deg, #6366F1, #818CF8)', color: '#fff', boxShadow: '0 4px 16px rgba(99,102,241,0.3)' }}>
                 Add User
               </button>
             </div>

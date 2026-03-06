@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip } from 'react-leaflet'
+import { MapContainer, TileLayer, CircleMarker, Tooltip } from 'react-leaflet'
 import PageHeader from '../components/ui/PageHeader'
 import { mockConcerts, mockArtists } from '../utils/mockData'
 import { formatNumber, formatCurrency, formatDate } from '../utils/formatters'
 import { MapPin, Ticket, DollarSign, Music2 } from 'lucide-react'
-
-// Fix Leaflet default marker icon issue in Vite
 import L from 'leaflet'
+
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -16,87 +15,61 @@ L.Icon.Default.mergeOptions({
 
 const ARTISTS = ['All Artists', ...mockArtists.map(a => a.name)]
 
-// Scale circle radius by tickets sold
-function getRadius(ticketsSold) {
-  if (ticketsSold >= 50000) return 28
-  if (ticketsSold >= 30000) return 22
-  if (ticketsSold >= 15000) return 16
-  return 12
-}
-
-// Colour by sell-through %
-function getColor(sold, capacity) {
-  const pct = sold / capacity
-  if (pct >= 0.95) return '#15803D'
-  if (pct >= 0.75) return '#F97316'
-  return '#DC2626'
+function getRadius(t) { return t >= 50000 ? 28 : t >= 30000 ? 22 : t >= 15000 ? 16 : 12 }
+function getColor(s, c) {
+  const p = s / c
+  return p >= 0.95 ? '#34D399' : p >= 0.75 ? '#FBBF24' : '#F87171'
 }
 
 function MapView() {
-  const [selectedArtist, setArtist] = useState('All Artists')
+  const [selectedArtist, setArtist]   = useState('All Artists')
   const [selectedConcert, setConcert] = useState(null)
 
   const filtered = mockConcerts.filter(c =>
     selectedArtist === 'All Artists' || c.artist === selectedArtist
   )
 
-  // Summary stats
   const totalTickets  = filtered.reduce((a, c) => a + c.tickets_sold, 0)
   const totalRevenue  = filtered.reduce((a, c) => a + c.total_revenue, 0)
-  const totalConcerts = filtered.length
 
   return (
-    <div className="flex flex-col h-full">
-      <PageHeader
-        title="Tour Map"
-        subtitle="Geographic view of concert locations and performance"
-      />
+    <div className="flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
+      <div className="fixed top-20 left-72 w-72 h-72 rounded-full pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.06), transparent 70%)', filter: 'blur(40px)' }} />
 
-      {/* Filters + Stats Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
-        {/* Artist Filter */}
-        <select
-          value={selectedArtist}
-          onChange={e => setArtist(e.target.value)}
-          className="text-sm border border-gray-200 rounded-lg px-3 py-2.5 bg-white text-gray-600 outline-none shadow-sm"
-        >
-          {ARTISTS.map(a => (
-            <option key={a} value={a}>{a}</option>
-          ))}
+      <PageHeader title="Tour Map" subtitle="Geographic view of concert locations and performance" />
+
+      {/* Controls */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+        <select value={selectedArtist} onChange={e => setArtist(e.target.value)}
+          className="text-sm rounded-xl px-4 py-2.5 outline-none"
+          style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'Satoshi' }}>
+          {ARTISTS.map(a => <option key={a} value={a}>{a}</option>)}
         </select>
 
-        {/* Quick Stats */}
         <div className="flex gap-3 flex-wrap">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-            <Music2 size={14} className="text-brand-blue" />
-            <span className="text-xs text-gray-500">Concerts:</span>
-            <span className="text-xs font-bold text-brand-navy">{totalConcerts}</span>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-            <Ticket size={14} className="text-brand-orange" />
-            <span className="text-xs text-gray-500">Tickets:</span>
-            <span className="text-xs font-bold text-brand-navy">{formatNumber(totalTickets)}</span>
-          </div>
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 shadow-sm">
-            <DollarSign size={14} className="text-green-600" />
-            <span className="text-xs text-gray-500">Revenue:</span>
-            <span className="text-xs font-bold text-brand-navy">{formatCurrency(totalRevenue)}</span>
-          </div>
+          {[
+            { icon: Music2,     label: 'Concerts', value: filtered.length,          color: 'var(--accent-indigo)' },
+            { icon: Ticket,     label: 'Tickets',  value: formatNumber(totalTickets), color: 'var(--accent-gold)'   },
+            { icon: DollarSign, label: 'Revenue',  value: formatCurrency(totalRevenue), color: 'var(--accent-green)' },
+          ].map((stat, i) => (
+            <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl"
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+              <stat.icon size={13} style={{ color: stat.color }} />
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{stat.label}:</span>
+              <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{stat.value}</span>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Map + Sidebar */}
-      <div className="flex gap-4 flex-1" style={{ minHeight: '520px' }}>
-
+      <div className="flex gap-4 flex-1 min-h-0">
         {/* Map */}
-        <div className="flex-1 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
-          <MapContainer
-            center={[20.5937, 78.9629]}
-            zoom={5}
-            style={{ height: '100%', width: '100%' }}
-          >
+        <div className="flex-1 rounded-2xl overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+          <MapContainer center={[20.5937, 78.9629]} zoom={5} style={{ height: '100%', width: '100%' }}>
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             {filtered.map(concert => (
@@ -105,18 +78,15 @@ function MapView() {
                 center={[concert.lat, concert.lng]}
                 radius={getRadius(concert.tickets_sold)}
                 pathOptions={{
-                  color:       getColor(concert.tickets_sold, concert.capacity),
-                  fillColor:   getColor(concert.tickets_sold, concert.capacity),
-                  fillOpacity: 0.7,
-                  weight:      2,
+                  color: getColor(concert.tickets_sold, concert.capacity),
+                  fillColor: getColor(concert.tickets_sold, concert.capacity),
+                  fillOpacity: 0.75, weight: 2,
                 }}
-                eventHandlers={{
-                  click: () => setConcert(concert),
-                }}
+                eventHandlers={{ click: () => setConcert(concert) }}
               >
                 <Tooltip direction="top" offset={[0, -8]} opacity={0.95}>
-                  <div className="text-xs">
-                    <p className="font-bold">{concert.artist}</p>
+                  <div style={{ fontFamily: 'Satoshi', fontSize: '12px' }}>
+                    <p style={{ fontWeight: 700 }}>{concert.artist}</p>
                     <p>{concert.venue}, {concert.city}</p>
                     <p>{formatDate(concert.date)}</p>
                   </div>
@@ -126,77 +96,77 @@ function MapView() {
           </MapContainer>
         </div>
 
-        {/* Sidebar — Concert List / Detail */}
-        <div className="w-72 flex flex-col gap-3 overflow-y-auto">
+        {/* Sidebar */}
+        <div className="w-68 flex flex-col gap-2 overflow-y-auto" style={{ width: '270px' }}>
           {selectedConcert ? (
-            // Concert Detail Panel
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
-              <button
-                onClick={() => setConcert(null)}
-                className="text-xs text-gray-400 hover:text-brand-navy mb-3 transition"
-              >
+            <div className="glass-card p-4">
+              <button onClick={() => setConcert(null)}
+                className="text-xs mb-3 transition-all duration-200"
+                style={{ color: 'var(--text-muted)' }}>
                 ← Back to list
               </button>
-              <h3 className="font-bold text-brand-navy text-sm mb-1">{selectedConcert.name}</h3>
-              <p className="text-xs text-brand-orange font-semibold mb-3">{selectedConcert.artist}</p>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center gap-2 text-gray-500">
-                  <MapPin size={12} className="text-brand-blue" />
-                  {selectedConcert.venue}, {selectedConcert.city}
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-3">
-                  {[
-                    { label: 'Date',         value: formatDate(selectedConcert.date) },
-                    { label: 'Capacity',     value: formatNumber(selectedConcert.capacity) },
-                    { label: 'Tickets Sold', value: formatNumber(selectedConcert.tickets_sold) },
-                    { label: 'ATP',          value: formatCurrency(selectedConcert.avg_ticket_price) },
-                    { label: 'Revenue',      value: formatCurrency(selectedConcert.total_revenue) },
-                    { label: 'Sell-Through', value: ((selectedConcert.tickets_sold / selectedConcert.capacity) * 100).toFixed(1) + '%' },
-                  ].map((item, i) => (
-                    <div key={i} className="bg-gray-50 rounded-lg p-2">
-                      <p className="text-gray-400 text-xs">{item.label}</p>
-                      <p className="font-semibold text-brand-navy text-xs mt-0.5">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-                {/* Sponsors */}
-                <div className="mt-3">
-                  <p className="text-gray-400 mb-2">Sponsors</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedConcert.sponsors.map((s, i) => (
-                      <span key={i} className="bg-blue-50 text-brand-blue text-xs px-2 py-0.5 rounded-full font-medium">
-                        {s}
-                      </span>
-                    ))}
+              <h3 className="font-display font-bold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>
+                {selectedConcert.name}
+              </h3>
+              <p className="text-xs font-semibold mb-3" style={{ color: 'var(--accent-gold)' }}>
+                {selectedConcert.artist}
+              </p>
+              <div className="flex items-center gap-1.5 mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
+                <MapPin size={11} style={{ color: 'var(--accent-indigo)' }} />
+                {selectedConcert.venue}, {selectedConcert.city}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { label: 'Date',         value: formatDate(selectedConcert.date) },
+                  { label: 'Capacity',     value: formatNumber(selectedConcert.capacity) },
+                  { label: 'Tickets Sold', value: formatNumber(selectedConcert.tickets_sold) },
+                  { label: 'ATP',          value: formatCurrency(selectedConcert.avg_ticket_price) },
+                  { label: 'Revenue',      value: formatCurrency(selectedConcert.total_revenue) },
+                  { label: 'Sell-Through', value: ((selectedConcert.tickets_sold / selectedConcert.capacity) * 100).toFixed(1) + '%' },
+                ].map((item, i) => (
+                  <div key={i} className="rounded-xl p-2" style={{ background: 'var(--bg-secondary)' }}>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>{item.label}</p>
+                    <p className="font-bold text-xs mt-0.5" style={{ color: 'var(--text-primary)' }}>{item.value}</p>
                   </div>
+                ))}
+              </div>
+              <div className="mt-3">
+                <p className="text-xs mb-2" style={{ color: 'var(--text-muted)' }}>Sponsors</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedConcert.sponsors.map((s, i) => (
+                    <span key={i} className="text-xs px-2 py-0.5 rounded-full font-medium"
+                      style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-indigo)' }}>
+                      {s}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
           ) : (
-            // Concert List
             <>
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wider px-1">
-                {filtered.length} Concert{filtered.length !== 1 ? 's' : ''}
+              <p className="text-xs uppercase tracking-widest px-1 mb-1"
+                style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+                {filtered.length} Concerts
               </p>
               {filtered.map(concert => (
-                <div
-                  key={concert.id}
-                  onClick={() => setConcert(concert)}
-                  className="bg-white rounded-xl border border-gray-200 shadow-sm p-3 cursor-pointer hover:border-brand-blue hover:shadow-md transition-all"
-                >
-                  <div className="flex items-start justify-between mb-2">
+                <div key={concert.id} onClick={() => setConcert(concert)}
+                  className="glass-card p-3 cursor-pointer transition-all duration-200"
+                  style={{ animationFillMode: 'both' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--border-strong)'; e.currentTarget.style.transform = 'translateX(3px)' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.transform = 'translateX(0)' }}>
+                  <div className="flex items-start justify-between mb-1.5">
                     <div>
-                      <p className="text-xs font-bold text-brand-navy">{concert.artist}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{concert.city}</p>
+                      <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{concert.artist}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{concert.city}</p>
                     </div>
-                    <span
-                      className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0"
-                      style={{ background: getColor(concert.tickets_sold, concert.capacity) }}
-                    />
+                    <span className="w-2.5 h-2.5 rounded-full mt-0.5 flex-shrink-0"
+                      style={{ background: getColor(concert.tickets_sold, concert.capacity) }} />
                   </div>
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-gray-400">{formatDate(concert.date)}</span>
-                    <span className="font-semibold text-brand-navy">{formatCurrency(concert.total_revenue)}</span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatDate(concert.date)}</span>
+                    <span className="text-xs font-bold font-display" style={{ color: 'var(--accent-gold)' }}>
+                      {formatCurrency(concert.total_revenue)}
+                    </span>
                   </div>
                 </div>
               ))}
@@ -206,19 +176,21 @@ function MapView() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-6 mt-4 px-1">
-        <p className="text-xs text-gray-400 font-semibold">Sell-Through:</p>
+      <div className="flex items-center gap-6 mt-3">
+        <p className="text-xs uppercase tracking-widest" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+          Sell-Through:
+        </p>
         {[
-          { color: '#15803D', label: '≥ 95% (Sold Out)' },
-          { color: '#F97316', label: '75–95%' },
-          { color: '#DC2626', label: '< 75%' },
+          { color: '#34D399', label: '≥ 95% Sold Out' },
+          { color: '#FBBF24', label: '75–95%'         },
+          { color: '#F87171', label: '< 75%'          },
         ].map((item, i) => (
           <div key={i} className="flex items-center gap-1.5">
-            <span className="w-3 h-3 rounded-full" style={{ background: item.color }} />
-            <span className="text-xs text-gray-500">{item.label}</span>
+            <span className="w-2.5 h-2.5 rounded-full" style={{ background: item.color }} />
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.label}</span>
           </div>
         ))}
-        <p className="text-xs text-gray-400 ml-4">Circle size = tickets sold</p>
+        <span className="text-xs ml-2" style={{ color: 'var(--text-muted)' }}>· Circle size = tickets sold</span>
       </div>
     </div>
   )
