@@ -1,18 +1,15 @@
 import { create } from 'zustand'
 
 const useFilterStore = create((set) => ({
+  artistType:     null,
   selectedArtist: null,
   selectedGenre:  null,
-  dateRange: {
-    from: new Date(new Date().setFullYear(new Date().getFullYear() - 1))
-      .toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0],
-  },
+  dateRange:      null,
 
-  setArtist:    (artist)    => set({ selectedArtist: artist }),
-  setGenre:     (genre)     => set({ selectedGenre: genre }),
-  setDateRange: (dateRange) => set({ dateRange }),
-  resetFilters: ()          => set({ selectedArtist: null, selectedGenre: null }),
+  setArtistType:  (type) => set({ artistType: type }),
+  setArtist:      (id)   => set({ selectedArtist: id }),
+  setGenre:       (g)    => set({ selectedGenre: g }),
+  setDateRange:   (r)    => set({ dateRange: r }),
 }))
 
 export default useFilterStore

@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import {
-  Users, Music2, Ticket, DollarSign,
-  TrendingUp, Star, Activity, Globe
+  Users, Music2, Ticket, DollarSign, TrendingUp,
 } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import KpiCard from '../components/ui/KpiCard'
@@ -10,18 +9,20 @@ import LineChart from '../components/charts/LineChart'
 import BarChart from '../components/charts/BarChart'
 import PieChart from '../components/charts/PieChart'
 import RoGBadge from '../components/ui/RoGBadge'
+import useFilterStore from '../store/useFilterStore'
 import {
   mockKpis, mockFollowerTrends, mockConcerts,
   mockAgeData, mockGenderData, mockGenreData, mockArtists,
 } from '../utils/mockData'
 import { formatNumber, formatCurrency, formatDate } from '../utils/formatters'
 
-const topArtists = mockArtists
-  .map(a => ({
-    name: a.name,
-    followers: Object.values(a.followers).reduce((s, v) => s + v, 0),
-  }))
-  .sort((a, b) => b.followers - a.followers)
+const TIME_FILTERS = [
+  { label: '6M',  months: 6  },
+  { label: '12M', months: 12 },
+  { label: '18M', months: 18 },
+  { label: '24M', months: 24 },
+  { label: '36M', months: 36 },
+]
 
 const revenueByCity = Object.values(
   mockConcerts.reduce((acc, c) => {
@@ -31,27 +32,60 @@ const revenueByCity = Object.values(
   }, {})
 ).sort((a, b) => b.revenue - a.revenue)
 
-// All 3 platform lines on one chart
 const TREND_LINES = [
   { key: 'instagram', label: 'Instagram', color: '#E1306C' },
   { key: 'youtube',   label: 'YouTube',   color: '#FF0000' },
   { key: 'spotify',   label: 'Spotify',   color: '#1DB954' },
 ]
 
-const KPI_CONFIG = [
-  { title: 'Total Artists',    value: mockKpis.totalArtists,                      subtitle: 'Active on platform',  rog: 8.3,  icon: Users,      accentColor: '#818CF8', delay: 0   },
-  { title: 'Total Concerts',   value: mockKpis.totalConcerts,                     subtitle: 'All time',            rog: 12.5, icon: Music2,     accentColor: '#FBBF24', delay: 80  },
-  { title: 'Tickets Sold YTD', value: formatNumber(mockKpis.ticketsSoldYTD),      subtitle: 'Year to date',        rog: 6.2,  icon: Ticket,     accentColor: '#34D399', delay: 160 },
-  { title: 'Revenue YTD',      value: formatCurrency(mockKpis.revenueYTD),        subtitle: 'Year to date',        rog: 18.4, icon: DollarSign, accentColor: '#F87171', delay: 240 },
-  { title: 'Avg Social RoG',   value: `${mockKpis.avgRoG}%`,                      subtitle: 'All platforms',       rog: mockKpis.avgRoG, icon: TrendingUp, accentColor: '#A78BFA', delay: 320 },
-  { title: 'Top Artist',       value: mockKpis.topArtist.name,                    subtitle: formatNumber(mockKpis.topArtist.streams) + ' streams', icon: Star, accentColor: '#FBBF24', delay: 400 },
-]
-
 function Dashboard() {
+  const { artistType } = useFilterStore()
+  const [timeFilter, setTimeFilter] = useState(12)
+
+  const marketLabel = artistType === 'indian'
+    ? '🇮🇳 Indian'
+    : artistType === 'international'
+    ? '🌍 International'
+    : ''
+
+  // Filter artists by type
+  const filteredArtists = mockArtists.filter(a =>
+    !artistType || a.type === artistType
+  )
+
+  // Filter concerts by artist type
+  const filteredConcerts = mockConcerts.filter(c => {
+    if (!artistType) return true
+    const artist = mockArtists.find(a => a.name === c.artist)
+    return artist?.type === artistType
+  })
+
+  // Top 10 artists by popularity (filtered by type)
+  // Time filter affects the popularity score slightly to simulate different periods
+  const topArtistsByPopularity = filteredArtists
+    .map(a => ({
+      ...a,
+      adjustedPopularity: Math.min(
+        Math.round(a.popularity * (1 + (timeFilter - 12) * 0.005)),
+        100
+      ),
+      adjustedStreams: Math.round(a.monthlyStreams * (timeFilter / 12)),
+    }))
+    .sort((a, b) => b.adjustedPopularity - a.adjustedPopularity)
+    .slice(0, 10)
+
+  const KPI_CONFIG = [
+    { title: 'Total Artists',    value: filteredArtists.length,                        subtitle: `${marketLabel} artists`,  rog: 8.3,             icon: Users,      accentColor: '#818CF8', delay: 0   },
+    { title: 'Total Concerts',   value: filteredConcerts.length,                       subtitle: 'All time',                rog: 12.5,            icon: Music2,     accentColor: '#FBBF24', delay: 80  },
+    { title: 'Tickets Sold YTD', value: formatNumber(mockKpis.ticketsSoldYTD),         subtitle: 'Year to date',            rog: 6.2,             icon: Ticket,     accentColor: '#34D399', delay: 160 },
+    { title: 'Revenue YTD',      value: formatCurrency(mockKpis.revenueYTD),           subtitle: 'Year to date',            rog: 18.4,            icon: DollarSign, accentColor: '#F87171', delay: 240 },
+    { title: 'Avg Social RoG',   value: `${mockKpis.avgRoG}%`,                         subtitle: 'All platforms',           rog: mockKpis.avgRoG, icon: TrendingUp, accentColor: '#A78BFA', delay: 320 },
+  ]
+
   return (
     <div className="relative">
 
-      {/* Ambient background glows */}
+      {/* Ambient glows */}
       <div className="fixed top-20 left-72 w-96 h-96 rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.08), transparent 70%)', filter: 'blur(40px)' }} />
       <div className="fixed bottom-20 right-20 w-80 h-80 rounded-full pointer-events-none"
@@ -59,26 +93,25 @@ function Dashboard() {
 
       <PageHeader
         title="Dashboard"
-        subtitle="Real-time overview of artist performance and concert analytics"
+        subtitle={`${marketLabel} Artist Performance & Concert Analytics`}
       />
 
       {/* ── KPI Strip ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6 relative">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
         {KPI_CONFIG.map((kpi, i) => (
           <KpiCard key={i} {...kpi} />
         ))}
       </div>
 
-      {/* ── Row 1: Multi-line Trend + Top Artists ── */}
+      {/* ── Row 1: Trend Chart + Top 10 Artists ── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
 
-        {/* All 3 platforms on one chart */}
+        {/* Multi-line trend */}
         <ChartContainer
           title="Platform Growth Trends"
           subtitle="Instagram · YouTube · Spotify — monthly followers"
           delay={100}
         >
-          {/* Legend pills */}
           <div className="flex gap-2 mb-4 flex-wrap">
             {TREND_LINES.map(p => (
               <span key={p.key}
@@ -89,47 +122,124 @@ function Dashboard() {
               </span>
             ))}
           </div>
-          <LineChart
-            data={mockFollowerTrends}
-            xKey="date"
-            lines={TREND_LINES}
-            height={260}
-          />
+          <LineChart data={mockFollowerTrends} xKey="date" lines={TREND_LINES} height={260} />
         </ChartContainer>
 
-        {/* Top Artists */}
-        <ChartContainer
-          title="Top Artists by Followers"
-          subtitle="Combined across all platforms"
-          delay={200}
-        >
-          <BarChart
-            data={topArtists}
-            xKey="name"
-            layout="vertical"
-            bars={[{ key: 'followers', label: 'Total Followers' }]}
-            multiColor={true}
-            height={300}
-          />
-        </ChartContainer>
+        {/* Top 10 Artists */}
+        <div className="glass-card p-5 animate-fade-up"
+          style={{ animationDelay: '150ms', animationFillMode: 'both', opacity: 0 }}>
+
+          {/* Header + Time Filter */}
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="font-display font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
+                🏆 Top {marketLabel} Artists
+              </h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Ranked by popularity score
+              </p>
+            </div>
+            {/* Time filter pills */}
+            <div className="flex gap-1 p-1 rounded-xl"
+              style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+              {TIME_FILTERS.map(tf => (
+                <button key={tf.months}
+                  onClick={() => setTimeFilter(tf.months)}
+                  className="text-xs px-2 py-1 rounded-lg font-semibold transition-all duration-200"
+                  style={timeFilter === tf.months ? {
+                    background: 'linear-gradient(135deg, #6366F1, #818CF8)',
+                    color: '#fff',
+                  } : {
+                    color: 'var(--text-muted)',
+                    background: 'transparent'
+                  }}>
+                  {tf.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Artist List */}
+          <div className="space-y-2 overflow-y-auto" style={{ maxHeight: '340px' }}>
+            {topArtistsByPopularity.length === 0 ? (
+              <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>
+                No artists found for selected market
+              </p>
+            ) : (
+              topArtistsByPopularity.map((artist, i) => {
+                const avgRoG = Object.values(artist.rog).reduce((a, b) => a + b, 0) / Object.values(artist.rog).length
+                return (
+                  <div key={artist.id}
+                    className="flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200 cursor-pointer"
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {/* Rank */}
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+                      style={{
+                        background: i === 0 ? 'rgba(245,158,11,0.2)' : i === 1 ? 'rgba(160,160,160,0.15)' : i === 2 ? 'rgba(180,100,60,0.15)' : 'var(--bg-secondary)',
+                        color: i === 0 ? '#F59E0B' : i === 1 ? '#9CA3AF' : i === 2 ? '#B46432' : 'var(--text-muted)',
+                        border: i === 0 ? '1px solid rgba(245,158,11,0.3)' : i === 1 ? '1px solid rgba(160,160,160,0.2)' : i === 2 ? '1px solid rgba(180,100,60,0.2)' : '1px solid var(--border)'
+                      }}>
+                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                    </div>
+
+                    {/* Avatar */}
+                    <img src={artist.photo} alt={artist.name}
+                      className="w-8 h-8 rounded-xl object-cover flex-shrink-0"
+                      style={{ border: '1px solid var(--border-strong)' }} />
+
+                    {/* Name + bar */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-xs font-bold truncate" style={{ color: 'var(--text-primary)' }}>
+                          {artist.name}
+                        </p>
+                        <span className="text-xs font-bold ml-1 flex-shrink-0"
+                          style={{ color: 'var(--accent-gold)' }}>
+                          {artist.adjustedPopularity}
+                        </span>
+                      </div>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
+                        <div className="h-full rounded-full transition-all duration-1000"
+                          style={{
+                            width: `${artist.adjustedPopularity}%`,
+                            background: i === 0
+                              ? 'linear-gradient(90deg, #F59E0B, #FBBF24)'
+                              : i <= 2
+                              ? 'linear-gradient(90deg, #818CF8, #A78BFA)'
+                              : 'linear-gradient(90deg, #34D399, #6EE7B7)'
+                          }} />
+                      </div>
+                    </div>
+
+                    {/* Monthly streams */}
+                    <div className="text-right flex-shrink-0 w-20">
+                      <p className="text-xs font-bold font-display" style={{ color: 'var(--accent-indigo)' }}>
+                        {formatNumber(artist.adjustedStreams)}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>streams</p>
+                    </div>
+
+                    {/* RoG */}
+                    <RoGBadge value={parseFloat(avgRoG.toFixed(1))} />
+                  </div>
+                )
+              })
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ── Row 2: Revenue + Age + Gender ── */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
         <ChartContainer title="Concert Revenue by City" subtitle="Total revenue per city (INR)" delay={150}>
-          <BarChart
-            data={revenueByCity}
-            xKey="name"
-            layout="horizontal"
-            bars={[{ key: 'revenue', label: 'Revenue', color: '#818CF8' }]}
-            height={240}
-          />
+          <BarChart data={revenueByCity} xKey="name" layout="horizontal"
+            bars={[{ key: 'revenue', label: 'Revenue', color: '#818CF8' }]} height={240} />
         </ChartContainer>
-
         <ChartContainer title="Audience Age Distribution" subtitle="% of total audience" delay={230}>
           <PieChart data={mockAgeData} nameKey="name" valueKey="value" innerRadius={55} height={240} />
         </ChartContainer>
-
         <ChartContainer title="Gender Distribution" subtitle="% of total audience" delay={310}>
           <PieChart data={mockGenderData} nameKey="name" valueKey="value" innerRadius={55} height={240} />
         </ChartContainer>
@@ -138,17 +248,11 @@ function Dashboard() {
       {/* ── Row 3: Genre + Recent Concerts ── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <ChartContainer title="Genre Popularity" subtitle="Total streams by music genre" delay={200}>
-          <BarChart
-            data={mockGenreData}
-            xKey="genre"
-            layout="vertical"
-            bars={[{ key: 'streams', label: 'Streams' }]}
-            multiColor={true}
-            height={260}
-          />
+          <BarChart data={mockGenreData} xKey="genre" layout="vertical"
+            bars={[{ key: 'streams', label: 'Streams' }]} multiColor={true} height={260} />
         </ChartContainer>
 
-        {/* Premium Concert Table */}
+        {/* Recent Concerts */}
         <div className="glass-card p-5 animate-fade-up"
           style={{ animationDelay: '280ms', animationFillMode: 'both', opacity: 0 }}>
           <div className="flex items-center justify-between mb-5">
@@ -156,49 +260,51 @@ function Dashboard() {
               <h3 className="font-display font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>
                 Recent Concerts
               </h3>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Latest events at a glance</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+                Latest {marketLabel} events at a glance
+              </p>
             </div>
             <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
               style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-indigo)' }}>
-              {mockConcerts.length} events
+              {filteredConcerts.length} events
             </span>
           </div>
 
           <div className="space-y-2">
-            {mockConcerts.map((c, i) => (
-              <div key={c.id}
-                className="flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer group"
-                style={{ animationDelay: `${i * 60}ms` }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                {/* Index */}
-                <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
-                  style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
-                  {i + 1}
-                </span>
-
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
-                    {c.artist}
-                  </p>
-                  <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                    {c.city} · {formatDate(c.date)}
-                  </p>
+            {filteredConcerts.length === 0 ? (
+              <p className="text-sm text-center py-8" style={{ color: 'var(--text-muted)' }}>
+                No concerts found for selected market
+              </p>
+            ) : (
+              filteredConcerts.map((c, i) => (
+                <div key={c.id}
+                  className="flex items-center gap-3 p-3 rounded-xl transition-all duration-200 cursor-pointer"
+                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                >
+                  <span className="w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0"
+                    style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
+                    {i + 1}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>
+                      {c.artist}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
+                      {c.city} · {formatDate(c.date)}
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-sm font-bold font-display" style={{ color: 'var(--accent-gold)' }}>
+                      {formatCurrency(c.total_revenue)}
+                    </p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                      {formatNumber(c.tickets_sold)} tickets
+                    </p>
+                  </div>
                 </div>
-
-                {/* Stats */}
-                <div className="text-right flex-shrink-0">
-                  <p className="text-sm font-bold font-display" style={{ color: 'var(--accent-gold)' }}>
-                    {formatCurrency(c.total_revenue)}
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {formatNumber(c.tickets_sold)} tickets
-                  </p>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

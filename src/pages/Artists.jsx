@@ -4,15 +4,18 @@ import { Search, Filter, TrendingUp } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import RoGBadge from '../components/ui/RoGBadge'
 import EmptyState from '../components/ui/EmptyState'
+import useFilterStore from '../store/useFilterStore'
 import { mockArtists } from '../utils/mockData'
 import { formatNumber } from '../utils/formatters'
 
 const GENRES = ['All', 'Bollywood', 'Pop', 'R&B', 'Classical/Fusion']
 
 const PLATFORM_META = {
-  instagram: { label: 'IG', color: '#E1306C' },
-  youtube:   { label: 'YT', color: '#FF0000' },
-  spotify:   { label: 'SP', color: '#1DB954' },
+  instagram:  { label: 'IG', color: '#E1306C' },
+  youtube:    { label: 'YT', color: '#FF0000' },
+  spotify:    { label: 'SP', color: '#1DB954' },
+  facebook:   { label: 'FB', color: '#1877F2' },
+  applemusic: { label: 'AM', color: '#FC3C44' },
 }
 
 function ArtistCard({ artist, onClick, delay = 0 }) {
@@ -21,14 +24,9 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
   const topPlatform = Object.entries(artist.followers).sort((a, b) => b[1] - a[1])[0]
 
   return (
-    <div
-      onClick={onClick}
+    <div onClick={onClick}
       className="glass-card p-5 cursor-pointer group animate-fade-up relative overflow-hidden"
-      style={{
-        animationDelay: `${delay}ms`,
-        animationFillMode: 'both',
-        opacity: 0,
-      }}
+      style={{ animationDelay: `${delay}ms`, animationFillMode: 'both', opacity: 0 }}
       onMouseEnter={e => {
         e.currentTarget.style.transform = 'translateY(-4px)'
         e.currentTarget.style.boxShadow = '0 20px 40px rgba(99,102,241,0.15)'
@@ -40,21 +38,28 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
         e.currentTarget.style.borderColor = 'var(--border)'
       }}
     >
-      {/* Hover glow */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
         style={{ background: 'radial-gradient(circle at 50% 0%, rgba(99,102,241,0.06), transparent 70%)' }} />
 
-      {/* Top: Avatar + Name */}
+      {/* Type badge */}
+      <div className="absolute top-3 right-3">
+        <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+          style={artist.type === 'indian' ? {
+            background: 'rgba(255,153,51,0.15)', color: '#FF9933'
+          } : {
+            background: 'rgba(99,102,241,0.15)', color: '#818CF8'
+          }}>
+          {artist.type === 'indian' ? '🇮🇳' : '🌍'}
+        </span>
+      </div>
+
+      {/* Avatar + Name */}
       <div className="flex items-start gap-3 mb-4">
         <div className="relative flex-shrink-0">
-          <img
-            src={artist.photo}
-            alt={artist.name}
+          <img src={artist.photo} alt={artist.name}
             className="w-14 h-14 rounded-2xl object-cover"
-            style={{ border: '2px solid var(--border-strong)' }}
-          />
-          {/* Online dot */}
-          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center"
+            style={{ border: '2px solid var(--border-strong)' }} />
+          <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
             style={{ background: '#10B981', borderColor: 'var(--bg-card)' }} />
         </div>
         <div className="flex-1 min-w-0">
@@ -77,23 +82,22 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
       {/* Total Followers */}
       <div className="mb-4">
         <p className="text-xs uppercase tracking-widest mb-1"
-          style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-          Total Followers
-        </p>
+          style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Total Followers</p>
         <p className="font-display font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>
           {formatNumber(totalFollowers)}
         </p>
       </div>
 
       {/* Platform breakdown */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-5 gap-1.5 mb-4">
         {Object.entries(artist.followers).map(([platform, count]) => {
           const meta = PLATFORM_META[platform]
+          if (!meta) return null
           return (
-            <div key={platform} className="rounded-xl p-2.5 text-center"
+            <div key={platform} className="rounded-xl p-2 text-center"
               style={{ background: `${meta.color}12`, border: `1px solid ${meta.color}20` }}>
               <p className="text-xs font-bold mb-0.5" style={{ color: meta.color }}>{meta.label}</p>
-              <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>
                 {formatNumber(count)}
               </p>
             </div>
@@ -112,12 +116,8 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
             </span>
           </span>
         </div>
-        <span className="text-xs font-semibold px-2.5 py-1 rounded-lg transition-all duration-200 group-hover:text-white"
-          style={{
-            background: 'var(--bg-secondary)',
-            color: 'var(--text-muted)',
-            border: '1px solid var(--border)'
-          }}>
+        <span className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+          style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
           View Profile →
         </span>
       </div>
@@ -126,25 +126,28 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
 }
 
 function Artists() {
-  const navigate   = useNavigate()
+  const navigate = useNavigate()
+  const { artistType } = useFilterStore()
   const [search, setSearch]     = useState('')
   const [activeGenre, setGenre] = useState('All')
 
   const filtered = mockArtists.filter(a => {
     const matchSearch = a.name.toLowerCase().includes(search.toLowerCase())
     const matchGenre  = activeGenre === 'All' || a.genre === activeGenre
-    return matchSearch && matchGenre
+    const matchType   = !artistType || a.type === artistType
+    return matchSearch && matchGenre && matchType
   })
+
+  const marketLabel = artistType === 'indian' ? '🇮🇳 Indian' : artistType === 'international' ? '🌍 International' : ''
 
   return (
     <div className="relative">
-      {/* Ambient glow */}
       <div className="fixed top-32 right-20 w-72 h-72 rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.07), transparent 70%)', filter: 'blur(40px)' }} />
 
       <PageHeader
         title="Artists"
-        subtitle={`${mockArtists.length} artists tracked on the platform`}
+        subtitle={`${filtered.length} ${marketLabel} artists tracked on the platform`}
       />
 
       {/* Search + Filter */}
@@ -152,60 +155,40 @@ function Artists() {
         <div className="flex items-center gap-2 px-4 py-3 rounded-xl flex-1"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
           <Search size={15} style={{ color: 'var(--text-muted)' }} />
-          <input
-            type="text"
-            placeholder="Search artists..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+          <input type="text" placeholder="Search artists..."
+            value={search} onChange={e => setSearch(e.target.value)}
             className="bg-transparent text-sm outline-none w-full"
-            style={{ color: 'var(--text-primary)', fontFamily: 'Satoshi' }}
-          />
+            style={{ color: 'var(--text-primary)', fontFamily: 'Satoshi' }} />
         </div>
-
         <div className="flex items-center gap-2 flex-wrap">
           <Filter size={14} style={{ color: 'var(--text-muted)' }} />
           {GENRES.map(g => (
-            <button
-              key={g}
-              onClick={() => setGenre(g)}
+            <button key={g} onClick={() => setGenre(g)}
               className="text-xs px-3 py-1.5 rounded-xl font-medium transition-all duration-200"
               style={activeGenre === g ? {
                 background: 'linear-gradient(135deg, #6366F1, #818CF8)',
-                color: '#fff',
-                boxShadow: '0 4px 12px rgba(99,102,241,0.3)'
+                color: '#fff', boxShadow: '0 4px 12px rgba(99,102,241,0.3)'
               } : {
-                background: 'var(--bg-card)',
-                color: 'var(--text-muted)',
-                border: '1px solid var(--border)'
-              }}
-            >
+                background: 'var(--bg-card)', color: 'var(--text-muted)', border: '1px solid var(--border)'
+              }}>
               {g}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Results count */}
       <p className="text-xs mb-4 uppercase tracking-widest"
         style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-        Showing {filtered.length} of {mockArtists.length} artists
+        Showing {filtered.length} of {mockArtists.filter(a => !artistType || a.type === artistType).length} artists
       </p>
 
-      {/* Grid */}
       {filtered.length === 0 ? (
-        <EmptyState
-          title="No artists found"
-          subtitle="Try adjusting your search or genre filter"
-        />
+        <EmptyState title="No artists found" subtitle="Try adjusting your search or genre filter" />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filtered.map((artist, i) => (
-            <ArtistCard
-              key={artist.id}
-              artist={artist}
-              delay={i * 60}
-              onClick={() => navigate(`/artists/${artist.id}`)}
-            />
+            <ArtistCard key={artist.id} artist={artist} delay={i * 60}
+              onClick={() => navigate(`/artists/${artist.id}`)} />
           ))}
         </div>
       )}

@@ -1,33 +1,39 @@
 export const mockArtists = [
-  { id: '1', name: 'Arijit Singh',    genre: 'Bollywood', nationality: 'Indian',
+  { id: '1', name: 'Arijit Singh',   type: 'indian',        genre: 'Bollywood',        nationality: 'Indian',
     photo: 'https://i.pravatar.cc/150?img=1',
-    followers: { instagram: 8200000, youtube: 12400000, spotify: 6100000 },
-    rog: { instagram: 2.4, youtube: 1.8, spotify: 3.1 } },
+    popularity: 87, monthlyStreams: 42000000,
+    followers: { instagram: 8200000,  youtube: 12400000, spotify: 6100000,  facebook: 5400000,  applemusic: 3200000 },
+    rog:       { instagram: 2.4,      youtube: 1.8,      spotify: 3.1,      facebook: 1.2,      applemusic: 2.8     } },
 
-  { id: '2', name: 'Dua Lipa',        genre: 'Pop', nationality: 'British',
+  { id: '2', name: 'Dua Lipa',       type: 'international', genre: 'Pop',              nationality: 'British',
     photo: 'https://i.pravatar.cc/150?img=2',
-    followers: { instagram: 87000000, youtube: 24000000, spotify: 41000000 },
-    rog: { instagram: 0.8, youtube: 1.2, spotify: 1.5 } },
+    popularity: 94, monthlyStreams: 89000000,
+    followers: { instagram: 87000000, youtube: 24000000, spotify: 41000000, facebook: 32000000, applemusic: 18000000 },
+    rog:       { instagram: 0.8,      youtube: 1.2,      spotify: 1.5,      facebook: 0.6,      applemusic: 1.1     } },
 
-  { id: '3', name: 'AR Rahman',       genre: 'Classical/Fusion', nationality: 'Indian',
+  { id: '3', name: 'AR Rahman',      type: 'indian',        genre: 'Classical/Fusion', nationality: 'Indian',
     photo: 'https://i.pravatar.cc/150?img=3',
-    followers: { instagram: 4100000, youtube: 9800000, spotify: 3200000 },
-    rog: { instagram: 1.1, youtube: 0.9, spotify: 1.4 } },
+    popularity: 82, monthlyStreams: 28000000,
+    followers: { instagram: 4100000,  youtube: 9800000,  spotify: 3200000,  facebook: 7800000,  applemusic: 1900000 },
+    rog:       { instagram: 1.1,      youtube: 0.9,      spotify: 1.4,      facebook: 0.7,      applemusic: 1.2     } },
 
-  { id: '4', name: 'The Weeknd',      genre: 'R&B', nationality: 'Canadian',
+  { id: '4', name: 'The Weeknd',     type: 'international', genre: 'R&B',              nationality: 'Canadian',
     photo: 'https://i.pravatar.cc/150?img=4',
-    followers: { instagram: 34000000, youtube: 31000000, spotify: 85000000 },
-    rog: { instagram: 0.6, youtube: 0.9, spotify: 1.1 } },
+    popularity: 96, monthlyStreams: 112000000,
+    followers: { instagram: 34000000, youtube: 31000000, spotify: 85000000, facebook: 21000000, applemusic: 42000000 },
+    rog:       { instagram: 0.6,      youtube: 0.9,      spotify: 1.1,      facebook: 0.4,      applemusic: 0.9     } },
 
-  { id: '5', name: 'Shreya Ghoshal',  genre: 'Bollywood', nationality: 'Indian',
+  { id: '5', name: 'Shreya Ghoshal', type: 'indian',        genre: 'Bollywood',        nationality: 'Indian',
     photo: 'https://i.pravatar.cc/150?img=5',
-    followers: { instagram: 9800000, youtube: 7200000, spotify: 2800000 },
-    rog: { instagram: 1.9, youtube: 1.3, spotify: 2.2 } },
+    popularity: 79, monthlyStreams: 18000000,
+    followers: { instagram: 9800000,  youtube: 7200000,  spotify: 2800000,  facebook: 6100000,  applemusic: 1400000 },
+    rog:       { instagram: 1.9,      youtube: 1.3,      spotify: 2.2,      facebook: 1.0,      applemusic: 1.8     } },
 
-  { id: '6', name: 'Ed Sheeran',      genre: 'Pop', nationality: 'British',
+  { id: '6', name: 'Ed Sheeran',     type: 'international', genre: 'Pop',              nationality: 'British',
     photo: 'https://i.pravatar.cc/150?img=6',
-    followers: { instagram: 44000000, youtube: 55000000, spotify: 92000000 },
-    rog: { instagram: 0.4, youtube: 0.7, spotify: 0.9 } },
+    popularity: 98, monthlyStreams: 134000000,
+    followers: { instagram: 44000000, youtube: 55000000, spotify: 92000000, facebook: 38000000, applemusic: 51000000 },
+    rog:       { instagram: 0.4,      youtube: 0.7,      spotify: 0.9,      facebook: 0.3,      applemusic: 0.8     } },
 ]
 
 export const mockConcerts = [
@@ -107,10 +113,9 @@ export const mockGenreData = [
 ]
 
 export const mockKpis = {
-  totalArtists:    6,
-  totalConcerts:   6,
-  ticketsSoldYTD:  253300,
-  revenueYTD:      1282760000,
-  avgRoG:          1.6,
-  topArtist:       { name: 'Ed Sheeran', streams: 92000000 },
+  totalArtists:  6,
+  totalConcerts: 6,
+  ticketsSoldYTD: 253300,
+  revenueYTD:    1282760000,
+  avgRoG:        1.6,
 }
