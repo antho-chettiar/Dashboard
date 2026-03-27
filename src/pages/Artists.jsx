@@ -5,8 +5,9 @@ import PageHeader from '../components/ui/PageHeader'
 import RoGBadge from '../components/ui/RoGBadge'
 import EmptyState from '../components/ui/EmptyState'
 import useFilterStore from '../store/useFilterStore'
-import { mockArtists } from '../utils/mockData'
+import { mockArtists, mockConcerts } from '../utils/mockData'
 import { formatNumber } from '../utils/formatters'
+
 
 const GENRES = ['All', 'Bollywood', 'Pop', 'R&B', 'Classical/Fusion']
 
@@ -18,10 +19,118 @@ const PLATFORM_META = {
   applemusic: { label: 'AM', color: '#FC3C44' },
 }
 
+// function ArtistCard({ artist, onClick, delay = 0 }) {
+//   const totalFollowers = Object.values(artist.followers).reduce((a, b) => a + b, 0)
+//   const avgRoG = Object.values(artist.rog).reduce((a, b) => a + b, 0) / Object.values(artist.rog).length
+//   const topPlatform = Object.entries(artist.followers).sort((a, b) => b[1] - a[1])[0]
+
+//   return (
+//     <div onClick={onClick}
+//       className="glass-card p-5 cursor-pointer group animate-fade-up relative overflow-hidden"
+//       style={{ animationDelay: `${delay}ms`, animationFillMode: 'both', opacity: 0 }}
+//       onMouseEnter={e => {
+//         e.currentTarget.style.transform = 'translateY(-4px)'
+//         e.currentTarget.style.boxShadow = '0 20px 40px rgba(99,102,241,0.15)'
+//         e.currentTarget.style.borderColor = 'var(--border-strong)'
+//       }}
+//       onMouseLeave={e => {
+//         e.currentTarget.style.transform = 'translateY(0)'
+//         e.currentTarget.style.boxShadow = 'none'
+//         e.currentTarget.style.borderColor = 'var(--border)'
+//       }}
+//     >
+//       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none rounded-2xl"
+//         style={{ background: 'radial-gradient(circle at 50% 0%, rgba(99,102,241,0.06), transparent 70%)' }} />
+
+//       {/* Type badge */}
+//       <div className="absolute top-3 right-3">
+//         <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+//           style={artist.type === 'indian' ? {
+//             background: 'rgba(255,153,51,0.15)', color: '#FF9933'
+//           } : {
+//             background: 'rgba(99,102,241,0.15)', color: '#818CF8'
+//           }}>
+//           {artist.type === 'indian' ? '🇮🇳' : '🌍'}
+//         </span>
+//       </div>
+
+//       {/* Avatar + Name */}
+//       <div className="flex items-start gap-3 mb-4">
+//         <div className="relative flex-shrink-0">
+//           <img src={artist.photo} alt={artist.name}
+//             className="w-14 h-14 rounded-2xl object-cover"
+//             style={{ border: '2px solid var(--border-strong)' }} />
+//           <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2"
+//             style={{ background: '#10B981', borderColor: 'var(--bg-card)' }} />
+//         </div>
+//         <div className="flex-1 min-w-0">
+//           <h3 className="font-display font-bold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+//             {artist.name}
+//           </h3>
+//           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+//             <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+//               style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-indigo)' }}>
+//               {artist.genre}
+//             </span>
+//             <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+//               {artist.nationality}
+//             </span>
+//           </div>
+//         </div>
+//         <RoGBadge value={avgRoG} />
+//       </div>
+
+//       {/* Total Followers */}
+//       <div className="mb-4">
+//         <p className="text-xs uppercase tracking-widest mb-1"
+//           style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Total Followers</p>
+//         <p className="font-display font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>
+//           {formatNumber(totalFollowers)}
+//         </p>
+//       </div>
+
+//       {/* Platform breakdown */}
+//       <div className="grid grid-cols-5 gap-1.5 mb-4">
+//         {Object.entries(artist.followers).map(([platform, count]) => {
+//           const meta = PLATFORM_META[platform]
+//           if (!meta) return null
+//           return (
+//             <div key={platform} className="rounded-xl p-2 text-center"
+//               style={{ background: `${meta.color}12`, border: `1px solid ${meta.color}20` }}>
+//               <p className="text-xs font-bold mb-0.5" style={{ color: meta.color }}>{meta.label}</p>
+//               <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>
+//                 {formatNumber(count)}
+//               </p>
+//             </div>
+//           )
+//         })}
+//       </div>
+
+//       {/* Footer */}
+//       <div className="flex items-center justify-between pt-3"
+//         style={{ borderTop: '1px solid var(--border)' }}>
+//         <div className="flex items-center gap-1.5">
+//           <TrendingUp size={12} style={{ color: 'var(--text-muted)' }} />
+//           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+//             Top: <span className="font-semibold capitalize" style={{ color: 'var(--text-secondary)' }}>
+//               {topPlatform[0]}
+//             </span>
+//           </span>
+//         </div>
+//         <span className="text-xs font-semibold px-2.5 py-1 rounded-lg"
+//           style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)', border: '1px solid var(--border)' }}>
+//           View Profile →
+//         </span>
+//       </div>
+//     </div>
+//   )
+// }
+
 function ArtistCard({ artist, onClick, delay = 0 }) {
   const totalFollowers = Object.values(artist.followers).reduce((a, b) => a + b, 0)
   const avgRoG = Object.values(artist.rog).reduce((a, b) => a + b, 0) / Object.values(artist.rog).length
   const topPlatform = Object.entries(artist.followers).sort((a, b) => b[1] - a[1])[0]
+  const artistConcerts = mockConcerts.filter(c => c.artist === artist.name)
 
   return (
     <div onClick={onClick}
@@ -54,7 +163,7 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
       </div>
 
       {/* Avatar + Name */}
-      <div className="flex items-start gap-3 mb-4">
+      <div className="flex items-start gap-3 mb-3">
         <div className="relative flex-shrink-0">
           <img src={artist.photo} alt={artist.name}
             className="w-14 h-14 rounded-2xl object-cover"
@@ -71,16 +180,35 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
               style={{ background: 'rgba(99,102,241,0.12)', color: 'var(--accent-indigo)' }}>
               {artist.genre}
             </span>
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-              {artist.nationality}
-            </span>
           </div>
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {artist.nationality}
+          </p>
         </div>
         <RoGBadge value={avgRoG} />
       </div>
 
+      {/* Age + Concerts row */}
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <div className="rounded-xl p-2 text-center"
+          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Age</p>
+          <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{artist.age}</p>
+        </div>
+        <div className="rounded-xl p-2 text-center"
+          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Career Concerts</p>
+          <p className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{artist.totalConcerts}</p>
+        </div>
+        <div className="rounded-xl p-2 text-center"
+          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+          <p className="text-xs" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Popularity</p>
+          <p className="font-bold text-sm" style={{ color: 'var(--accent-gold)' }}>{artist.popularity}</p>
+        </div>
+      </div>
+
       {/* Total Followers */}
-      <div className="mb-4">
+      <div className="mb-3">
         <p className="text-xs uppercase tracking-widest mb-1"
           style={{ color: 'var(--text-muted)', fontSize: '10px' }}>Total Followers</p>
         <p className="font-display font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>
@@ -89,7 +217,7 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
       </div>
 
       {/* Platform breakdown */}
-      <div className="grid grid-cols-5 gap-1.5 mb-4">
+      <div className="grid grid-cols-5 gap-1.5 mb-3">
         {Object.entries(artist.followers).map(([platform, count]) => {
           const meta = PLATFORM_META[platform]
           if (!meta) return null
@@ -97,7 +225,7 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
             <div key={platform} className="rounded-xl p-2 text-center"
               style={{ background: `${meta.color}12`, border: `1px solid ${meta.color}20` }}>
               <p className="text-xs font-bold mb-0.5" style={{ color: meta.color }}>{meta.label}</p>
-              <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>
+              <p className="font-semibold" style={{ color: 'var(--text-secondary)', fontSize: '10px' }}>
                 {formatNumber(count)}
               </p>
             </div>

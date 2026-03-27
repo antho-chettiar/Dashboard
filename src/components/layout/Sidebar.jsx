@@ -110,7 +110,7 @@ function Sidebar() {
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white truncate">Admin User</p>
-            <p className="text-xs truncate" style={{ color: 'var(--sidebar-text)' }}>admin@k2s2.com</p>
+            <p className="text-xs truncate" style={{ color: 'var(--sidebar-text)' }}>admin@digitalabs.com</p>
           </div>
         </div>
       </div>
