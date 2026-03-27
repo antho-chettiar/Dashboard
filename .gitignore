@@ -26,6 +26,20 @@ dist-ssr
 .env
 .env.local
 .env.production
+.env.*.local
 
 # OS files
 Thumbs.db
+
+# Claude Code local settings
+.claude/
+
+# Backend specific
+backend/node_modules
+backend/dist
+backend/.env
+backend/.env.local
+backend/.env.production
+backend/.env.*.local
+backend/prisma/migrations/*/migration_lock.toml
+!backend/prisma/migrations
