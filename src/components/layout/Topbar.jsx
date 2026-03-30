@@ -1,8 +1,9 @@
 import { Bell, Search, Sun, Moon, LogOut } from 'lucide-react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import useThemeStore from '../../store/useThemeStore'
 import useFilterStore from '../../store/useFilterStore'
+import useAuthStore from '../../store/useAuthStore'
 
 const pageTitles = {
   '/dashboard':       'Dashboard',
@@ -17,8 +18,10 @@ const pageTitles = {
 
 function Topbar() {
   const { pathname }                      = useLocation()
+  const navigate = useNavigate()
   const { theme, toggleTheme, initTheme } = useThemeStore()
   const { artistType, setArtistType }     = useFilterStore()
+  const logout                           = useAuthStore((state) => state.logout)
 
   useEffect(() => { initTheme() }, [])
 
@@ -111,7 +114,8 @@ function Topbar() {
       </button>
 
       {/* Logout */}
-      <button className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl"
+      <button onClick={() => { logout(); navigate('/login'); }}
+        className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl transition-colors hover:opacity-80"
         style={{ color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
         <LogOut size={15} />
         <span className="hidden sm:block">Logout</span>

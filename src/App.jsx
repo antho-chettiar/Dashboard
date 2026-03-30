@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import AppShell from './components/layout/AppShell'
 
 // Pages
@@ -15,6 +15,21 @@ import AdminIngestion from './pages/AdminIngestion'
 import NotFound from './pages/NotFound'
 import Analysis from './pages/Analysis'
 
+import useAuthStore from './store/useAuthStore'
+
+// Protected Route Wrapper
+function ProtectedRoute({ children }) {
+  const token = useAuthStore((state) => state.token)
+  const location = useLocation()
+
+  if (!token) {
+    // Redirect to login, saving the attempted location for post-login redirect
+    return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  return children ? children : <AppShell />
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -22,8 +37,15 @@ function App() {
         {/* Public */}
         <Route path="/login" element={<Login />} />
 
-        {/* Protected — inside AppShell */}
-        <Route path="/" element={<AppShell />}>
+        {/* Protected Routes */}
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <AppShell />
+            </ProtectedRoute>
+          }
+        >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="artists" element={<Artists />} />
