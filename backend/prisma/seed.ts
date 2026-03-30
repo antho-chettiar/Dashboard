@@ -62,7 +62,6 @@ async function main() {
         bio: 'Indian playback singer known for his soulful voice',
         photoUrl: 'https://example.com/arijit.jpg',
         active: true,
-        genres: popGenre ? { connect: { id: popGenre.id } } : undefined,
       },
     });
 
@@ -73,9 +72,27 @@ async function main() {
         bio: 'Popular Indian rock band',
         photoUrl: 'https://example.com/local-train.jpg',
         active: true,
-        genres: rockGenre ? { connect: { id: rockGenre.id } } : undefined,
       },
     });
+
+    // Connect artists to genres via ArtistGenre
+    if (popGenre) {
+      await prisma.artistGenre.create({
+        data: {
+          artistId: artist1.id,
+          genreId: popGenre.id,
+        },
+      });
+    }
+
+    if (rockGenre) {
+      await prisma.artistGenre.create({
+        data: {
+          artistId: artist2.id,
+          genreId: rockGenre.id,
+        },
+      });
+    }
 
     console.log('✅ Sample artists created:', artist1.name, artist2.name);
 
