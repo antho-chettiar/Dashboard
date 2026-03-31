@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Filter, TrendingUp } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import RoGBadge from '../components/ui/RoGBadge'
 import EmptyState from '../components/ui/EmptyState'
 import useFilterStore from '../store/useFilterStore'
-import { mockArtists, mockConcerts } from '../utils/mockData'
+import { useArtists } from '../hooks/useArtists'
 import { formatNumber } from '../utils/formatters'
 
 
@@ -130,8 +130,7 @@ function ArtistCard({ artist, onClick, delay = 0 }) {
   const totalFollowers = Object.values(artist.followers).reduce((a, b) => a + b, 0)
   const avgRoG = Object.values(artist.rog).reduce((a, b) => a + b, 0) / Object.values(artist.rog).length
   const topPlatform = Object.entries(artist.followers).sort((a, b) => b[1] - a[1])[0]
-  const artistConcerts = mockConcerts.filter(c => c.artist === artist.name)
-
+const totalConcerts = artist.totalConcerts || 0
   return (
     <div onClick={onClick}
       className="glass-card p-5 cursor-pointer group animate-fade-up relative overflow-hidden"
@@ -259,14 +258,77 @@ function Artists() {
   const [search, setSearch]     = useState('')
   const [activeGenre, setGenre] = useState('All')
 
-  const filtered = mockArtists.filter(a => {
-    const matchSearch = a.name.toLowerCase().includes(search.toLowerCase())
-    const matchGenre  = activeGenre === 'All' || a.genre === activeGenre
-    const matchType   = !artistType || a.type === artistType
-    return matchSearch && matchGenre && matchType
+  // Fetch artists from API
+  const { data: artists, isLoading, error } = useArtists({
+    search: search,
+    genre: activeGenre === 'All' ? '' : activeGenre,
   })
 
+  // Apply additional filters (artistType)
+  const filtered = useMemo(() => {
+    if (!artists) return []
+    return artists.filter(a => {
+      const matchType = !artistType || a.type === artistType
+      return matchType
+    })
+  }, [artists, artistType])
+
   const marketLabel = artistType === 'indian' ? '🇮🇳 Indian' : artistType === 'international' ? '🌍 International' : ''
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="relative">
+        <div className="fixed top-32 right-20 w-72 h-72 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.07), transparent 70%)', filter: 'blur(40px)' }} />
+        <PageHeader
+          title="Artists"
+          subtitle="Loading artists..."
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {[1,2,3,4,5,6,7,8].map(i => (
+            <div key={i} className="glass-card p-5 animate-pulse">
+              <div className="flex items-start gap-3 mb-4">
+                <div className="w-14 h-14 rounded-2xl bg-gray-200 dark:bg-gray-700" />
+                <div className="flex-1">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                </div>
+              </div>
+              <div className="h-8 bg-gray-200 dark:bg-gray-700 rounded w-1/2 mb-3" />
+              <div className="grid grid-cols-5 gap-1.5 mb-3">
+                {[1,2,3,4,5].map(j => (
+                  <div key={j} className="h-12 bg-gray-200 dark:bg-gray-700 rounded-xl" />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="relative">
+        <div className="fixed top-32 right-20 w-72 h-72 rounded-full pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.07), transparent 70%)', filter: 'blur(40px)' }} />
+        <PageHeader
+          title="Artists"
+          subtitle={`${marketLabel} artists tracked on the platform`}
+        />
+        <EmptyState
+          title="Failed to load artists"
+          subtitle={error?.response?.data?.message || error.message || 'Please try again'}
+          action={{
+            label: 'Retry',
+            onClick: () => window.location.reload()
+          }}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="relative">
@@ -307,7 +369,7 @@ function Artists() {
 
       <p className="text-xs mb-4 uppercase tracking-widest"
         style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-        Showing {filtered.length} of {mockArtists.filter(a => !artistType || a.type === artistType).length} artists
+        Showing {filtered.length} of {artists?.length || 0} artists
       </p>
 
       {filtered.length === 0 ? (
