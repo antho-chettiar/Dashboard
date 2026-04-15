@@ -3,7 +3,7 @@ import PageHeader from '../components/ui/PageHeader'
 import ChartContainer from '../components/charts/ChartContainer'
 import PieChart from '../components/charts/PieChart'
 import BarChart from '../components/charts/BarChart'
-import { mockAgeData, mockGenderData, mockGenreData, mockArtists } from '../utils/mockData'
+import { useDemographics } from '../hooks/useDemographics'
 import { formatNumber } from '../utils/formatters'
 
 const PLATFORMS = ['All Platforms', 'Instagram', 'YouTube', 'Spotify']

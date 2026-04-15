@@ -63,11 +63,13 @@ export const dashboardController = {
 
       // Top artist by streams (last month)
       const oneMonthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      const topArtistStreams = await prisma.platformMetric.groupBy({
+
+      // First, find the artistId with max streams
+      const topArtistAgg = await prisma.platformMetric.groupBy({
         by: ['artistId'],
         where: {
           metricDate: { gte: oneMonthAgo },
-          platform: 'YOUTUBE', // or could be SPOTIFY
+          platform: 'YOUTUBE',
         },
         _max: {
           streams: true,
@@ -78,18 +80,29 @@ export const dashboardController = {
           },
         },
         take: 1,
-        include: {
-          artist: {
-            select: {
-              id: true,
-              name: true,
-              photoUrl: true,
-            },
-          },
-        },
       });
 
-      const topArtist = topArtistStreams[0];
+      let topArtistByStreams = null;
+      if (topArtistAgg.length > 0) {
+        const { artistId, _max } = topArtistAgg[0];
+        // Fetch artist details separately
+        const artist = await prisma.artist.findUnique({
+          where: { id: artistId },
+          select: {
+            id: true,
+            name: true,
+            photoUrl: true,
+          },
+        });
+        if (artist) {
+          topArtistByStreams = {
+            id: artist.id,
+            name: artist.name,
+            photoUrl: artist.photoUrl,
+            streams: _max.streams || 0,
+          };
+        }
+      }
 
       const kpis = {
         totalArtists,
@@ -97,12 +110,7 @@ export const dashboardController = {
         ticketsSoldYTD: ticketsSoldYTD._sum.ticketsSold || 0,
         revenueYTD: revenueYTD._sum.totalRevenue || 0,
         avgRoGDaily: avgRoG._avg.rogDaily ? parseFloat(avgRoG._avg.rogDaily.toFixed(2)) : 0,
-        topArtistByStreams: topArtist ? {
-          id: topArtist.artist.id,
-          name: topArtist.artist.name,
-          photoUrl: topArtist.artist.photoUrl,
-          streams: topArtist._max.streams,
-        } : null,
+        topArtistByStreams,
       };
 
       // Cache for 1 hour
@@ -132,29 +140,44 @@ export const dashboardController = {
         });
       }
 
-      // Get latest metrics for each artist
-      const latestDate = await prisma.platformMetric.groupBy({
-        by: ['artistId', 'platform'],
+      // Get latest metrics per artist+platform by fetching recent metrics sorted by date
+      // We'll fetch metrics from the last 90 days and deduplicate in memory
+      const now = new Date();
+      const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+      const allMetrics = await prisma.platformMetric.findMany({
+        where: {
+          metricDate: { gte: ninetyDaysAgo },
+          ...(platform && { platform: platform.toUpperCase() }),
+        },
         orderBy: { metricDate: 'desc' },
-        take: 1,
+        select: {
+          artistId: true,
+          platform: true,
+          followers: true,
+        },
       });
 
-      if (latestDate.length === 0) {
+      // Deduplicate: keep only the latest metric for each artist+platform combination
+      const latestMap = new Map<string, typeof allMetrics[0]>();
+      for (const metric of allMetrics) {
+        const key = `${metric.artistId}:${metric.platform}`;
+        if (!latestMap.has(key)) {
+          latestMap.set(key, metric);
+        }
+      }
+      const latestMetrics = Array.from(latestMap.values());
+
+      if (latestMetrics.length === 0) {
         return res.status(200).json({
           success: true,
           data: { artists: [] },
         });
       }
 
-      // Group by artist to get max followers across platforms
+      // Group by artist to sum total followers across platforms
       const artistFollowers: any = {};
 
-      for (const metric of latestDate) {
-        // Apply platform filter if specified
-        if (platform && metric.platform !== platform.toUpperCase()) {
-          continue;
-        }
-
+      for (const metric of latestMetrics) {
         if (!artistFollowers[metric.artistId]) {
           artistFollowers[metric.artistId] = {
             artistId: metric.artistId,

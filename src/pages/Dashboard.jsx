@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   Users, Music2, Ticket, DollarSign, TrendingUp,
 } from 'lucide-react'
@@ -10,10 +10,7 @@ import BarChart from '../components/charts/BarChart'
 import PieChart from '../components/charts/PieChart'
 import RoGBadge from '../components/ui/RoGBadge'
 import useFilterStore from '../store/useFilterStore'
-import {
-  mockKpis, mockFollowerTrends, mockConcerts,
-  mockAgeData, mockGenderData, mockGenreData, mockArtists,
-} from '../utils/mockData'
+import { useDashboardData } from '../hooks/useDashboardData'
 import { formatNumber, formatCurrency, formatDate } from '../utils/formatters'
 
 const TIME_FILTERS = [
@@ -23,14 +20,6 @@ const TIME_FILTERS = [
   { label: '24M', months: 24 },
   { label: '36M', months: 36 },
 ]
-
-const revenueByCity = Object.values(
-  mockConcerts.reduce((acc, c) => {
-    if (!acc[c.city]) acc[c.city] = { name: c.city, revenue: 0 }
-    acc[c.city].revenue += c.total_revenue
-    return acc
-  }, {})
-).sort((a, b) => b.revenue - a.revenue)
 
 const TREND_LINES = [
   { key: 'instagram', label: 'Instagram', color: '#E1306C' },
@@ -42,44 +31,137 @@ function Dashboard() {
   const { artistType } = useFilterStore()
   const [timeFilter, setTimeFilter] = useState(12)
 
+  const { data, isLoading, error } = useDashboardData()
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading dashboard...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 rounded-xl border" style={{ borderColor: 'var(--border)', background: 'rgba(239,68,68,0.1)' }}>
+        <p className="text-sm" style={{ color: '#EF4444' }}>Failed to load dashboard data: {error.message}</p>
+      </div>
+    )
+  }
+
+  if (!data) return null
+
+  const {
+    kpis,
+    topArtistsPool,
+    allConcerts,
+    allArtists,
+    followerTrends,
+    genres: genreData,
+    ageData,
+    genderData,
+    artistIdToType,
+  } = data
+
   const marketLabel = artistType === 'indian'
     ? '🇮🇳 Indian'
     : artistType === 'international'
     ? '🌍 International'
     : ''
 
-  // Filter artists by type
-  const filteredArtists = mockArtists.filter(a =>
-    !artistType || a.type === artistType
-  )
+  // Total Artists count by type
+  const totalArtistsCount = useMemo(() => {
+    if (!allArtists) return 0
+    if (!artistType) return allArtists.length
+    return allArtists.filter(a => artistIdToType[a.id] === artistType).length
+  }, [allArtists, artistIdToType, artistType])
 
-  // Filter concerts by artist type
-  const filteredConcerts = mockConcerts.filter(c => {
-    if (!artistType) return true
-    const artist = mockArtists.find(a => a.name === c.artist)
-    return artist?.type === artistType
-  })
+  // Filter top artists pool by type (for top list)
+  const filteredArtists = useMemo(() => {
+    if (!topArtistsPool) return []
+    return artistType ? topArtistsPool.filter(a => a.type === artistType) : topArtistsPool
+  }, [topArtistsPool, artistType])
 
-  // Top 10 artists by popularity (filtered by type)
-  // Time filter affects the popularity score slightly to simulate different periods
-  const topArtistsByPopularity = filteredArtists
-    .map(a => ({
-      ...a,
-      adjustedPopularity: Math.min(
-        Math.round(a.popularity * (1 + (timeFilter - 12) * 0.005)),
-        100
-      ),
-      adjustedStreams: Math.round(a.monthlyStreams * (timeFilter / 12)),
-    }))
-    .sort((a, b) => b.adjustedPopularity - a.adjustedPopularity)
-    .slice(0, 10)
+  // Apply time filter and get top 10
+  const topArtistsByPopularity = useMemo(() => {
+    return [...filteredArtists]
+      .map(a => ({
+        ...a,
+        adjustedPopularity: Math.min(
+          Math.round(a.popularity * (1 + (timeFilter - 12) * 0.005)),
+          100
+        ),
+        adjustedStreams: Math.round(a.monthlyStreams * (timeFilter / 12)),
+      }))
+      .sort((a, b) => b.adjustedPopularity - a.adjustedPopularity)
+      .slice(0, 10)
+  }, [filteredArtists, timeFilter])
+
+  // Filter all concerts by artist type
+  const filteredConcerts = useMemo(() => {
+    if (!allConcerts) return []
+    return artistType
+      ? allConcerts.filter(c => artistIdToType[c.artistId] === artistType)
+      : allConcerts
+  }, [allConcerts, artistIdToType, artistType])
+
+  // Aggregate revenue by city from filteredConcerts
+  const revenueByCity = useMemo(() => {
+    if (!filteredConcerts.length) return []
+    const grouped = filteredConcerts.reduce((acc, c) => {
+      if (!acc[c.city]) acc[c.city] = { name: c.city, revenue: 0 }
+      acc[c.city].revenue += c.total_revenue
+      return acc
+    }, {})
+    return Object.values(grouped).sort((a, b) => b.revenue - a.revenue)
+  }, [filteredConcerts])
 
   const KPI_CONFIG = [
-    { title: 'Total Artists',    value: filteredArtists.length,                        subtitle: `${marketLabel} artists`,  rog: 8.3,             icon: Users,      accentColor: '#818CF8', delay: 0   },
-    { title: 'Total Concerts',   value: filteredConcerts.length,                       subtitle: 'All time',                rog: 12.5,            icon: Music2,     accentColor: '#FBBF24', delay: 80  },
-    { title: 'Tickets Sold YTD', value: formatNumber(mockKpis.ticketsSoldYTD),         subtitle: 'Year to date',            rog: 6.2,             icon: Ticket,     accentColor: '#34D399', delay: 160 },
-    { title: 'Revenue YTD',      value: formatCurrency(mockKpis.revenueYTD),           subtitle: 'Year to date',            rog: 18.4,            icon: DollarSign, accentColor: '#F87171', delay: 240 },
-    { title: 'Avg Social RoG',   value: `${mockKpis.avgRoG}%`,                         subtitle: 'All platforms',           rog: mockKpis.avgRoG, icon: TrendingUp, accentColor: '#A78BFA', delay: 320 },
+    {
+      title: 'Total Artists',
+      value: totalArtistsCount,
+      subtitle: `${marketLabel} artists`,
+      rog: 8.3,
+      icon: Users,
+      accentColor: '#818CF8',
+      delay: 0,
+    },
+    {
+      title: 'Total Concerts',
+      value: filteredConcerts.length,
+      subtitle: 'All time',
+      rog: 12.5,
+      icon: Music2,
+      accentColor: '#FBBF24',
+      delay: 80,
+    },
+    {
+      title: 'Tickets Sold YTD',
+      value: formatNumber(kpis?.ticketsSoldYTD || 0),
+      subtitle: 'Year to date',
+      rog: 0,
+      icon: Ticket,
+      accentColor: '#34D399',
+      delay: 160,
+    },
+    {
+      title: 'Revenue YTD',
+      value: formatCurrency(kpis?.revenueYTD || 0),
+      subtitle: 'Year to date',
+      rog: 0,
+      icon: DollarSign,
+      accentColor: '#F87171',
+      delay: 240,
+    },
+    {
+      title: 'Avg Social RoG',
+      value: `${kpis?.avgRoG || 0}%`,
+      subtitle: 'All platforms',
+      rog: kpis?.avgRoG || 0,
+      icon: TrendingUp,
+      accentColor: '#A78BFA',
+      delay: 320,
+    },
   ]
 
   return (
@@ -122,7 +204,7 @@ function Dashboard() {
               </span>
             ))}
           </div>
-          <LineChart data={mockFollowerTrends} xKey="date" lines={TREND_LINES} height={260} />
+          <LineChart data={followerTrends} xKey="date" lines={TREND_LINES} height={260} />
         </ChartContainer>
 
         {/* Top 10 Artists */}
@@ -238,17 +320,17 @@ function Dashboard() {
             bars={[{ key: 'revenue', label: 'Revenue', color: '#818CF8' }]} height={240} />
         </ChartContainer>
         <ChartContainer title="Audience Age Distribution" subtitle="% of total audience" delay={230}>
-          <PieChart data={mockAgeData} nameKey="name" valueKey="value" innerRadius={55} height={240} />
+          <PieChart data={ageData || []} nameKey="name" valueKey="value" innerRadius={55} height={240} />
         </ChartContainer>
         <ChartContainer title="Gender Distribution" subtitle="% of total audience" delay={310}>
-          <PieChart data={mockGenderData} nameKey="name" valueKey="value" innerRadius={55} height={240} />
+          <PieChart data={genderData || []} nameKey="name" valueKey="value" innerRadius={55} height={240} />
         </ChartContainer>
       </div>
 
       {/* ── Row 3: Genre + Recent Concerts ── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <ChartContainer title="Genre Popularity" subtitle="Total streams by music genre" delay={200}>
-          <BarChart data={mockGenreData} xKey="genre" layout="vertical"
+          <BarChart data={genreData || []} xKey="genre" layout="vertical"
             bars={[{ key: 'streams', label: 'Streams' }]} multiColor={true} height={260} />
         </ChartContainer>
 

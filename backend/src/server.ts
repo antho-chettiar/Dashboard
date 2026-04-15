@@ -14,21 +14,13 @@ import analyticsRoutes from './routes/analytics.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import ingestionRoutes from './routes/ingestion.routes';
 import { PrismaClient } from '@prisma/client';
-import Redis from 'ioredis';
+import { connectRedis } from './utils/database';
 
 const app = express();
 const prisma = new PrismaClient();
-const redis = new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  retryDelayOnFailover: 100,
-  lazyConnect: true,
-});
 
-// Make DB and Redis instances available globally
+// Make DB instance available globally (for legacy code if needed)
 ;(global as any).prisma = prisma;
-;(global as any).redis = redis;
 
 // Trust proxy (for rate limiting behind reverse proxy)
 app.set('trust proxy', 1);
@@ -94,15 +86,26 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Export for testing
-export { app, prisma, redis };
+export { app, prisma };
 
 // Start server only if not in test mode
 if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 3001;
-  app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-    console.log(`🔗 API: http://localhost:${PORT}/api/v1`);
-    console.log(`💚 Health: http://localhost:${PORT}/health`);
-  });
+  const startServer = async () => {
+    try {
+      // Connect to Redis (optional)
+      await connectRedis();
+      // Note: Database connects lazily on first use
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on port ${PORT}`);
+        console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`🔗 API: http://localhost:${PORT}/api/v1`);
+        console.log(`💚 Health: http://localhost:${PORT}/health`);
+      });
+    } catch (error) {
+      console.error('❌ Failed to start server:', error);
+      process.exit(1);
+    }
+  };
+  startServer();
 }
