@@ -9,7 +9,7 @@ const navItems = [
   { label: 'Dashboard',    path: '/dashboard',      icon: LayoutDashboard },
   { label: 'Artists',      path: '/artists',         icon: Mic2            },
   { label: 'Concerts',     path: '/concerts',        icon: Music2          },
-  { label: 'Demographics', path: '/demographics',    icon: Users           },
+  // { label: 'Demographics', path: '/demographics',    icon: Users           },
   { label: 'Analysis',     path: '/analysis',        icon: BarChart3       },
   { label: 'Map View',     path: '/map',             icon: Map             },
 ]

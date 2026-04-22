@@ -52,7 +52,7 @@ function App() {
           <Route path="artists/:id" element={<ArtistProfile />} />
           <Route path="concerts" element={<Concerts />} />
           <Route path="concerts/:id" element={<ConcertDetail />} />
-          <Route path="demographics" element={<Demographics />} />
+          {/* <Route path="demographics" element={<Demographics />} /> */}
           <Route path="map" element={<MapView />} />
           <Route path="admin/users" element={<AdminUsers />} />
           <Route path="admin/ingestion" element={<AdminIngestion />} />
