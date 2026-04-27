@@ -2,14 +2,20 @@ import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import client from '../api/client'
 
+// Check if user is authenticated
+const isAuthenticated = () => {
+  return !!localStorage.getItem('token')
+}
+
 export function useDashboardData({ timeFilter = 12 } = {}) {
   // Fetch KPIs
   const { data: kpisData, isLoading: kpisLoading, error: kpisError } = useQuery({
     queryKey: ['dashboard', 'kpis'],
     queryFn: async () => {
       const response = await client.get('/dashboard/kpis')
-      return response.data.kpis
+      return response.data.data
     },
+    enabled: isAuthenticated(),
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 
@@ -21,7 +27,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       return response.data.artists || []
     },
     staleTime: 5 * 60 * 1000,
-    enabled: !!kpisData,
+    enabled: !!kpisData && isAuthenticated(),
   })
 
   // Fetch follower trends per platform (Instagram, YouTube, Spotify)
@@ -29,30 +35,30 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     queryKey: ['analytics', 'trends', 'instagram'],
     queryFn: async () => {
       const response = await client.get('/analytics/trends?metric=followers&platform=instagram')
-      return response.data.trends
+      return response.data?.trends || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData,
+    enabled: !!kpisData && isAuthenticated(),
   })
 
   const { data: youtubeTrends, isLoading: youtubeLoading } = useQuery({
     queryKey: ['analytics', 'trends', 'youtube'],
     queryFn: async () => {
       const response = await client.get('/analytics/trends?metric=followers&platform=youtube')
-      return response.data.trends
+      return response.data?.trends || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData,
+    enabled: !!kpisData && isAuthenticated(),
   })
 
   const { data: spotifyTrends, isLoading: spotifyLoading } = useQuery({
     queryKey: ['analytics', 'trends', 'spotify'],
     queryFn: async () => {
       const response = await client.get('/analytics/trends?metric=followers&platform=spotify')
-      return response.data.trends
+      return response.data?.trends || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData,
+    enabled: !!kpisData && isAuthenticated(),
   })
 
   // Fetch genre data
@@ -60,10 +66,10 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     queryKey: ['analytics', 'genres'],
     queryFn: async () => {
       const response = await client.get('/analytics/genres')
-      return response.data.genres
+      return response.data?.genres || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData,
+    enabled: !!kpisData && isAuthenticated(),
   })
 
   // Fetch all artists for artistType mapping (limited to 1000)
@@ -74,7 +80,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       return response.data.data.artists || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData,
+    enabled: !!kpisData && isAuthenticated(),
   })
 
   // Fetch all concerts for revenue aggregation and totalConcerts calculation
@@ -85,7 +91,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       return response.data.data.concerts || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData,
+    enabled: !!kpisData && isAuthenticated(),
   })
 
   // Fetch demographics data
@@ -96,7 +102,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       return response.data.data.breakdown || []
     },
     staleTime: 15 * 60 * 1000,
-    enabled: !!kpisData,
+    enabled: !!kpisData && isAuthenticated(),
   })
 
   const { data: genderDemographicsData, isLoading: genderLoading } = useQuery({
@@ -106,11 +112,11 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       return response.data.data.breakdown || []
     },
     staleTime: 15 * 60 * 1000,
-    enabled: !!kpisData,
+    enabled: !!kpisData && isAuthenticated(),
   })
 
   const isLoading = kpisLoading || topArtistsLoading || instagramLoading || youtubeLoading || spotifyLoading || genresLoading || ageLoading || genderLoading
-  const error = kpisError || topArtistsError || genresError
+  const error = kpisError // only fail if KPIs fail, since it's the main data point. Others can be optional.
 
   // Build artistId -> type map (from all artists)
   const artistTypeById = React.useMemo(() => {
@@ -151,6 +157,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
 
     return topArtistsData.map(item => {
       const artist = item.artist
+      const nationality = artist.nationality || ''
       const genres = artist.genres || []
       // Use artistId to look up type from the artistTypeMap (built from all artists)
       const type = artistTypeById[artist.id] || 'international'
@@ -315,7 +322,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       genres: genreData,
       ageData,
       genderData,
-      artistTypeById: artistTypeById,
+      artistIdToType: artistTypeById,
     },
     isLoading,
     error,

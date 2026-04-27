@@ -33,35 +33,51 @@ function Dashboard() {
 
   const { data, isLoading, error } = useDashboardData()
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading dashboard...</div>
-      </div>
-    )
-  }
+  // if (isLoading) {
+  //   return (
+  //     <div className="flex items-center justify-center h-64">
+  //       <div className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading dashboard...</div>
+  //     </div>
+  //   )
+  // }
 
-  if (error) {
-    return (
-      <div className="p-4 rounded-xl border" style={{ borderColor: 'var(--border)', background: 'rgba(239,68,68,0.1)' }}>
-        <p className="text-sm" style={{ color: '#EF4444' }}>Failed to load dashboard data: {error.message}</p>
-      </div>
-    )
-  }
+  // if (error) {
+  //   return (
+  //     <div className="p-4 rounded-xl border" style={{ borderColor: 'var(--border)', background: 'rgba(239,68,68,0.1)' }}>
+  //       <p className="text-sm" style={{ color: '#EF4444' }}>Failed to load dashboard data: {error.message}</p>
+  //     </div>
+  //   )
+  // }
 
-  if (!data) return null
+ // if (!data) return null
 
-  const {
-    kpis,
-    topArtistsPool,
-    allConcerts,
-    allArtists,
-    followerTrends,
-    genres: genreData,
-    ageData,
-    genderData,
-    artistIdToType,
-  } = data
+  // const { 
+  // kpis,
+  // topArtistsPool,
+  // allConcerts,
+  // allArtists,
+  // followerTrends,
+  // genres: genreData,
+  // ageData,
+  // genderData,
+  // artistIdToType,
+  // } = data || {}
+      const {
+        kpis = {},
+        topArtistsPool = [],
+        allConcerts = [],
+        allArtists = [],
+        followerTrends = [],
+        genres: genreData = [],
+        ageData = [],
+        genderData = [],
+        artistIdToType = {},
+      } = data || {}
+
+  const safeTopArtists = topArtistsPool || []
+  const safeConcerts = allConcerts || []
+  const safeArtists = allArtists || []
+  const safeTrends = followerTrends || []
 
   const marketLabel = artistType === 'indian'
     ? '🇮🇳 Indian'
@@ -78,9 +94,9 @@ function Dashboard() {
 
   // Filter top artists pool by type (for top list)
   const filteredArtists = useMemo(() => {
-    if (!topArtistsPool) return []
-    return artistType ? topArtistsPool.filter(a => a.type === artistType) : topArtistsPool
-  }, [topArtistsPool, artistType])
+    if (!safeTopArtists.length) return []
+    return artistType ? safeTopArtists.filter(a => a.type === artistType) : safeTopArtists
+  }, [safeTopArtists, artistType])
 
   // Apply time filter and get top 10
   const topArtistsByPopularity = useMemo(() => {
@@ -167,6 +183,23 @@ function Dashboard() {
   return (
     <div className="relative">
 
+
+      {isLoading && (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          Loading dashboard...
+        </div>
+      </div>
+    )}
+
+    {error && (
+      <div className="p-4 rounded-xl border">
+        <p style={{ color: '#EF4444' }}>
+          Failed: {error.message}
+        </p>
+      </div>
+    )}
+
       {/* Ambient glows */}
       <div className="fixed top-20 left-72 w-96 h-96 rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.08), transparent 70%)', filter: 'blur(40px)' }} />
@@ -204,7 +237,7 @@ function Dashboard() {
               </span>
             ))}
           </div>
-          <LineChart data={followerTrends} xKey="date" lines={TREND_LINES} height={260} />
+          <LineChart data={safeTrends} xKey="date" lines={TREND_LINES} height={260} />
         </ChartContainer>
 
         {/* Top 10 Artists */}
@@ -249,7 +282,9 @@ function Dashboard() {
               </p>
             ) : (
               topArtistsByPopularity.map((artist, i) => {
-                const avgRoG = Object.values(artist.rog).reduce((a, b) => a + b, 0) / Object.values(artist.rog).length
+                const avgRoG = artist.rog
+                ? Object.values(artist.rog).reduce((a, b) => a + b, 0) / Object.values(artist.rog).length
+                : 0
                 return (
                   <div key={artist.id}
                     className="flex items-center gap-3 p-2.5 rounded-xl transition-all duration-200 cursor-pointer"
