@@ -270,15 +270,23 @@ function ProfitabilityPredictor() {
 }
 
 // ── ARTIST COMPARISON ──
+// Unique cities from concert data
+const CONCERT_CITIES = ['All Cities', ...Array.from(new Set(mockConcerts.map(c => c.city))).sort()]
+
 function ArtistComparison() {
-  const [artistA, setArtistA] = useState('')
-  const [artistB, setArtistB] = useState('')
+  const [artistA, setArtistA]       = useState('')
+  const [artistB, setArtistB]       = useState('')
+  const [selectedCity, setSelCity]  = useState('All Cities')
 
   const a = mockArtists.find(x => x.id === artistA)
   const b = mockArtists.find(x => x.id === artistB)
 
-  const concertsA = mockConcerts.filter(c => c.artist === a?.name)
-  const concertsB = mockConcerts.filter(c => c.artist === b?.name)
+  const concertsA = mockConcerts.filter(c =>
+    c.artist === a?.name && (selectedCity === 'All Cities' || c.city === selectedCity)
+  )
+  const concertsB = mockConcerts.filter(c =>
+    c.artist === b?.name && (selectedCity === 'All Cities' || c.city === selectedCity)
+  )
 
   const statsA = a ? {
     totalFollowers:  Object.values(a.followers).reduce((s, v) => s + v, 0),
@@ -382,7 +390,37 @@ function ArtistComparison() {
         </div>
       </div>
 
-      {/* Empty state */}
+      {/* City filter */}
+      <div className="glass-card p-4 mb-6 animate-fade-up" style={{ animationDelay: '80ms', animationFillMode: 'both', opacity: 0 }}>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+          <div className="flex items-center gap-2">
+            <MapPin size={14} style={{ color: 'var(--accent-gold)' }} />
+            <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
+              Comparison by City
+            </span>
+          </div>
+          <select
+            value={selectedCity}
+            onChange={e => setSelCity(e.target.value)}
+            className="flex-1 rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-200"
+            style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'Satoshi', maxWidth: '260px' }}
+          >
+            {CONCERT_CITIES.map(city => (
+              <option key={city} value={city} style={{ background: 'var(--bg-card)', color: 'var(--text-primary)' }}>
+                {city}
+              </option>
+            ))}
+          </select>
+          {selectedCity !== 'All Cities' && (
+            <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
+              style={{ background: 'rgba(245,158,11,0.12)', color: 'var(--accent-gold)', border: '1px solid rgba(245,158,11,0.2)' }}>
+              Filtered: {selectedCity}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Empty state – no artists selected */}
       {(!a || !b) && (
         <div className="glass-card p-16 text-center animate-fade-up">
           <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
@@ -398,8 +436,33 @@ function ArtistComparison() {
         </div>
       )}
 
+      {/* Empty state – city has no data for one or both artists */}
+      {a && b && selectedCity !== 'All Cities' && (concertsA.length === 0 || concertsB.length === 0) && (
+        <div className="glass-card p-14 text-center animate-fade-up">
+          <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <MapPin size={28} style={{ color: 'var(--accent-red)' }} />
+          </div>
+          <h3 className="font-display font-semibold text-lg mb-2" style={{ color: 'var(--text-primary)' }}>
+            No data available for {selectedCity}
+          </h3>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            {concertsA.length === 0 && concertsB.length === 0
+              ? `Neither ${a.name} nor ${b.name} has concerts in ${selectedCity}.`
+              : concertsA.length === 0
+              ? `${a.name} has no concerts in ${selectedCity}.`
+              : `${b.name} has no concerts in ${selectedCity}.`}
+          </p>
+          <button onClick={() => setSelCity('All Cities')}
+            className="mt-4 text-xs px-4 py-2 rounded-xl font-semibold transition-all duration-200"
+            style={{ background: 'rgba(99,102,241,0.1)', color: 'var(--accent-indigo)', border: '1px solid rgba(99,102,241,0.2)' }}>
+            Clear city filter
+          </button>
+        </div>
+      )}
+
       {/* Comparison Results */}
-      {a && b && statsA && statsB && (
+      {a && b && statsA && statsB && !(selectedCity !== 'All Cities' && (concertsA.length === 0 || concertsB.length === 0)) && (
         <>
           {/* Head to head table */}
           <div className="glass-card overflow-hidden mb-4 animate-fade-up">
