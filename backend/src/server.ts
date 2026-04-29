@@ -13,17 +13,31 @@ import concertRoutes from './routes/concert.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import dashboardRoutes from './routes/dashboard.routes';
 import ingestionRoutes from './routes/ingestion.routes';
-import { PrismaClient } from '@prisma/client';
-import { connectRedis } from './utils/database';
+import { prisma, connectRedis } from './utils/database';
 
 const app = express();
-const prisma = new PrismaClient();
-
-// Make DB instance available globally (for legacy code if needed)
-;(global as any).prisma = prisma;
 
 // Trust proxy (for rate limiting behind reverse proxy)
 app.set('trust proxy', 1);
+
+
+app.use((req, res, next) => {
+  const oldJson = res.json;
+
+  res.json = function (data) {
+    return oldJson.call(
+      this,
+      JSON.parse(
+        JSON.stringify(data, (_, value) =>
+          typeof value === 'bigint' ? Number(value) : value
+        )
+      )
+    );
+  };
+
+  next();
+});
+
 
 // Security middleware
 app.use(helmet());
@@ -42,10 +56,13 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined'));
 }
 
-// Rate limiting
+// M5: Rate limit raised from 100 to 500 per 15 min for internal dashboard use.
+// A single dashboard load makes ~10 API calls. The old limit of 100 meant only
+// ~10 simultaneous users before rate limiting kicked in. 500 handles ~50 users.
+// Override in production via the RATE_LIMIT_MAX_REQUESTS env var.
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000'), // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // limit each IP to 100 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '500'),       // M5: was 100
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -65,6 +82,10 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development',
   });
 });
+
+(BigInt.prototype as any).toJSON = function () {
+  return Number(this);
+};
 
 // API routes
 app.use('/api/v1/auth', authRoutes);
@@ -93,17 +114,15 @@ if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 3001;
   const startServer = async () => {
     try {
-      // Connect to Redis (optional)
       await connectRedis();
-      // Note: Database connects lazily on first use
       app.listen(PORT, () => {
-        console.log(`🚀 Server running on port ${PORT}`);
-        console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-        console.log(`🔗 API: http://localhost:${PORT}/api/v1`);
-        console.log(`💚 Health: http://localhost:${PORT}/health`);
+        console.log(`Server running on port ${PORT}`);
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`API: http://localhost:${PORT}/api/v1`);
+        console.log(`Health: http://localhost:${PORT}/health`);
       });
     } catch (error) {
-      console.error('❌ Failed to start server:', error);
+      console.error('Failed to start server:', error);
       process.exit(1);
     }
   };

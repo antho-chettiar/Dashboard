@@ -1,22 +1,20 @@
 import React from 'react'
 import { useQuery } from '@tanstack/react-query'
 import client from '../api/client'
-
-// Check if user is authenticated
-const isAuthenticated = () => {
-  return !!localStorage.getItem('token')
-}
+import useAuthStore from '../store/useAuthStore'
 
 export function useDashboardData({ timeFilter = 12 } = {}) {
+  const token = useAuthStore((state) => state.token)
+
   // Fetch KPIs
   const { data: kpisData, isLoading: kpisLoading, error: kpisError } = useQuery({
     queryKey: ['dashboard', 'kpis'],
     queryFn: async () => {
       const response = await client.get('/dashboard/kpis')
-      return response.data.data
+      return response.data.data.kpis
     },
-    enabled: isAuthenticated(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
   })
 
   // Fetch top artists (get a larger pool to allow filtering by type)
@@ -24,41 +22,41 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     queryKey: ['dashboard', 'top-artists'],
     queryFn: async () => {
       const response = await client.get('/dashboard/top-artists?limit=100')
-      return response.data.artists || []
+      return response.data.data.artists || []
     },
     staleTime: 5 * 60 * 1000,
-    enabled: !!kpisData && isAuthenticated(),
+    enabled: !!kpisData && !!token,
   })
 
-  // Fetch follower trends per platform (Instagram, YouTube, Spotify)
+  // Fetch follower trends per platform
   const { data: instagramTrends, isLoading: instagramLoading } = useQuery({
     queryKey: ['analytics', 'trends', 'instagram'],
     queryFn: async () => {
       const response = await client.get('/analytics/trends?metric=followers&platform=instagram')
-      return response.data?.trends || []
+      return response.data.data?.trends || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData && isAuthenticated(),
+    enabled: !!token,
   })
 
   const { data: youtubeTrends, isLoading: youtubeLoading } = useQuery({
     queryKey: ['analytics', 'trends', 'youtube'],
     queryFn: async () => {
       const response = await client.get('/analytics/trends?metric=followers&platform=youtube')
-      return response.data?.trends || []
+      return response.data.data?.trends || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData && isAuthenticated(),
+    enabled: !!token,
   })
 
   const { data: spotifyTrends, isLoading: spotifyLoading } = useQuery({
     queryKey: ['analytics', 'trends', 'spotify'],
     queryFn: async () => {
       const response = await client.get('/analytics/trends?metric=followers&platform=spotify')
-      return response.data?.trends || []
+      return response.data.data?.trends || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData && isAuthenticated(),
+    enabled: !!token,
   })
 
   // Fetch genre data
@@ -66,10 +64,10 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     queryKey: ['analytics', 'genres'],
     queryFn: async () => {
       const response = await client.get('/analytics/genres')
-      return response.data?.genres || []
+      return response.data.data?.genres || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData && isAuthenticated(),
+    enabled: !!token,
   })
 
   // Fetch all artists for artistType mapping (limited to 1000)
@@ -80,7 +78,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       return response.data.data.artists || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData && isAuthenticated(),
+    enabled: !!token,
   })
 
   // Fetch all concerts for revenue aggregation and totalConcerts calculation
@@ -91,7 +89,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       return response.data.data.concerts || []
     },
     staleTime: 10 * 60 * 1000,
-    enabled: !!kpisData && isAuthenticated(),
+    enabled: !!token,
   })
 
   // Fetch demographics data
@@ -102,7 +100,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       return response.data.data.breakdown || []
     },
     staleTime: 15 * 60 * 1000,
-    enabled: !!kpisData && isAuthenticated(),
+    enabled: !!token,
   })
 
   const { data: genderDemographicsData, isLoading: genderLoading } = useQuery({
@@ -112,13 +110,13 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       return response.data.data.breakdown || []
     },
     staleTime: 15 * 60 * 1000,
-    enabled: !!kpisData && isAuthenticated(),
+    enabled: !!token,
   })
 
   const isLoading = kpisLoading || topArtistsLoading || instagramLoading || youtubeLoading || spotifyLoading || genresLoading || ageLoading || genderLoading
-  const error = kpisError // only fail if KPIs fail, since it's the main data point. Others can be optional.
+  const error = kpisError
 
-  // Build artistId -> type map (from all artists)
+  // Build artistId -> type map
   const artistTypeById = React.useMemo(() => {
     if (!allArtistsRaw) return {}
     const map = {}
@@ -130,7 +128,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     return map
   }, [allArtistsRaw])
 
-  // Build artistId -> name map for concert display
+  // Build artistId -> name map
   const artistNameMap = React.useMemo(() => {
     if (!allArtistsRaw) return {}
     const map = {}
@@ -150,8 +148,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     topArtistByStreams: kpisData.topArtistByStreams || null,
   } : null
 
-  // Transform top artists: convert API format to UI format
-  // We'll process all topArtistsData (pool) and then apply artistType filter and sorting on client
+  // Transform top artists pool
   const transformedArtistsPool = React.useMemo(() => {
     if (!topArtistsData) return []
 
@@ -159,25 +156,11 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       const artist = item.artist
       const nationality = artist.nationality || ''
       const genres = artist.genres || []
-      // Use artistId to look up type from the artistTypeMap (built from all artists)
       const type = artistTypeById[artist.id] || 'international'
       const genre = genres.length > 0 ? genres[0].genre.name : 'Unknown'
 
-      // Followers by platform
-      const followers = {
-        instagram: 0,
-        youtube: 0,
-        spotify: 0,
-        facebook: 0,
-        applemusic: 0,
-      }
-      const rog = {
-        instagram: 0,
-        youtube: 0,
-        spotify: 0,
-        facebook: 0,
-        applemusic: 0,
-      }
+      const followers = { instagram: 0, youtube: 0, spotify: 0, facebook: 0, applemusic: 0 }
+      const rog = { instagram: 0, youtube: 0, spotify: 0, facebook: 0, applemusic: 0 }
 
       if (item.platforms && Array.isArray(item.platforms)) {
         item.platforms.forEach(p => {
@@ -188,12 +171,8 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
         })
       }
 
-      // Normalized popularity (0-100). Assume 100M followers = 100
       const popularity = Math.min(100, Math.round((item.totalFollowers || 0) / 1000000))
-
-      // Approx monthly streams: 0.1% of total followers
       const monthlyStreams = Math.round(item.totalFollowers * 0.001)
-
       const photo = artist.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(artist.name)}&background=6366F1&color=fff`
 
       return {
@@ -203,7 +182,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
         genre,
         nationality,
         age: 0,
-        totalConcerts: 0, // will compute later from concerts
+        totalConcerts: 0,
         popularity,
         monthlyStreams,
         followers,
@@ -225,7 +204,6 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     return counts
   }, [allConcertsRaw])
 
-  // Combine transformedArtistsPool with concert counts:
   const topArtistsWithConcerts = React.useMemo(() => {
     if (!transformedArtistsPool.length) return []
     return transformedArtistsPool.map(artist => ({
@@ -252,22 +230,31 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     }))
   }, [genderDemographicsData])
 
-  // Combine trends into followerTrends
+  // M1: Combine trends into followerTrends with year-disambiguated keys
+  // Key format: "Jan 2025" (used for dedup/sort), display label: "Jan 25"
   const followerTrends = React.useMemo(() => {
-    const allTrends = []
+    // Map keyed by "Mon YYYY" to avoid cross-year collisions
+    const trendMap = new Map()
+
     const addTrends = (data, platform) => {
       if (!data || !Array.isArray(data)) return
       data.forEach(metric => {
         const date = new Date(metric.metricDate)
-        const monthYear = date.toLocaleDateString('en-US', { month: 'short' })
-        let existing = allTrends.find(d => d.date === monthYear)
-        if (existing) {
-          existing[platform] += metric.followers || 0
-        } else {
-          const newEntry = { date: monthYear, instagram: 0, youtube: 0, spotify: 0 }
-          newEntry[platform] = metric.followers || 0
-          allTrends.push(newEntry)
+        const year = date.getFullYear()
+        const monthShort = date.toLocaleDateString('en-US', { month: 'short' })
+        const mapKey = `${monthShort} ${year}`                   // dedup key — unique across years
+        const displayLabel = `${monthShort} '${String(year).slice(2)}` // display: "Jan '25"
+
+        if (!trendMap.has(mapKey)) {
+          trendMap.set(mapKey, {
+            date: displayLabel,
+            _sortKey: date.getFullYear() * 100 + date.getMonth(), // numeric for correct sort
+            instagram: 0,
+            youtube: 0,
+            spotify: 0,
+          })
         }
+        trendMap.get(mapKey)[platform] += metric.followers || 0
       })
     }
 
@@ -275,9 +262,9 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     addTrends(youtubeTrends, 'youtube')
     addTrends(spotifyTrends, 'spotify')
 
-    // Sort by month order
-    const monthOrder = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    return allTrends.sort((a, b) => monthOrder.indexOf(a.date) - monthOrder.indexOf(b.date))
+    return Array.from(trendMap.values())
+      .sort((a, b) => a._sortKey - b._sortKey)
+      .map(({ _sortKey, ...rest }) => rest) // strip internal sort key before returning
   }, [instagramTrends, youtubeTrends, spotifyTrends])
 
   // Transform genres
@@ -294,7 +281,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     if (!allConcertsRaw) return []
     return allConcertsRaw.map(c => ({
       id: c.id,
-      artistId: c.artistId, // Keep artistId for type filtering
+      artistId: c.artistId,
       artist: c.artist?.name || 'Unknown Artist',
       name: c.concertName,
       date: new Date(c.concertDate),
@@ -317,7 +304,7 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
       kpis,
       topArtistsPool: topArtistsWithConcerts,
       allConcerts: transformedConcerts,
-      allArtists: allArtistsRaw, // expose for total artist count
+      allArtists: allArtistsRaw,
       followerTrends,
       genres: genreData,
       ageData,
@@ -326,7 +313,6 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
     },
     isLoading,
     error,
-    // Individual loading states for possible use
     isKpisLoading: kpisLoading,
     isTopArtistsLoading: topArtistsLoading,
     isConcertsLoading: allConcertsRaw === undefined,
@@ -336,7 +322,6 @@ export function useDashboardData({ timeFilter = 12 } = {}) {
   }
 }
 
-// Helper function
 function capitalize(str) {
   if (!str) return ''
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()

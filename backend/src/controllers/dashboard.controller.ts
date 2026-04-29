@@ -12,7 +12,7 @@ export const dashboardController = {
       if (cached) {
         return res.status(200).json({
           success: true,
-          data: JSON.parse(cached),
+          data: { kpis: JSON.parse(cached) },
           cached: true,
         });
       }
@@ -116,10 +116,18 @@ export const dashboardController = {
       // Cache for 1 hour
       await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(kpis));
 
-      res.status(200).json({
-        success: true,
-        data: { kpis },
-      });
+      const safeData = JSON.parse(
+  JSON.stringify({ kpis }, (_, value) =>
+    typeof value === 'bigint' ? Number(value) : value
+  )
+);
+
+res.status(200).json({
+  success: true,
+  data: safeData,
+});
+
+
     } catch (error) {
       throw error;
     }
@@ -135,7 +143,7 @@ export const dashboardController = {
       if (cached) {
         return res.status(200).json({
           success: true,
-          data: JSON.parse(cached),
+          data: { artists: JSON.parse(cached) },
           cached: true,
         });
       }
@@ -186,10 +194,11 @@ export const dashboardController = {
           };
         }
 
-        artistFollowers[metric.artistId].totalFollowers += metric.followers || 0;
+        artistFollowers[metric.artistId].totalFollowers += Number(metric.followers || 0);
+
         artistFollowers[metric.artistId].platforms.push({
           platform: metric.platform,
-          followers: metric.followers || 0,
+          followers: Number(metric.followers || 0),
         });
       }
 
@@ -218,18 +227,28 @@ export const dashboardController = {
 
       const enriched = sortedArtists.map((item: any) => ({
         ...item,
-        artist: artistMap[item.artistId],
+        artist: artistMap[item.artistId] || null,
       }));
+
+      console.log("TopArtists → sorted:", sortedArtists.length);
+      console.log("TopArtists → enriched:", enriched.length);
 
       await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(enriched));
 
       res.status(200).json({
         success: true,
-        data: { artists: enriched },
+        data: JSON.parse(JSON.stringify({ artists: enriched })),
       });
+
     } catch (error) {
-      throw error;
-    }
+       console.error("TopArtists ERROR:", error);
+
+      return res.status(500).json({
+      success: false,
+       message: "Top Artists Failed",
+      error: String(error),
+    });
+   }
   },
 };
 

@@ -10,10 +10,8 @@ export const analyticsController = {
     try {
       const { artistId, platform, period = 'daily' } = req.query;
 
-      // Build cache key
       const cacheKey = `rog:${artistId || 'all'}:${platform || 'all'}:${period}`;
 
-      // Try cache first
       const cached = await redis.get(cacheKey);
       if (cached) {
         return res.status(200).json({
@@ -24,11 +22,9 @@ export const analyticsController = {
       }
 
       const where: any = {};
-
       if (artistId) where.artistId = artistId;
       if (platform) where.platform = platform.toUpperCase();
 
-      // Get metrics ordered by date
       const metrics = await prisma.platformMetric.findMany({
         where,
         orderBy: { metricDate: 'desc' },
@@ -40,7 +36,6 @@ export const analyticsController = {
         },
       });
 
-      // Calculate RoG based on period
       const results = metrics.map((metric) => {
         const rogField = period === 'daily' ? metric.rogDaily
           : period === 'weekly' ? metric.rogWeekly
@@ -57,7 +52,6 @@ export const analyticsController = {
         };
       }).filter((r) => r.rog !== null);
 
-      // Cache results
       await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(results));
 
       res.status(200).json({
@@ -69,13 +63,24 @@ export const analyticsController = {
     }
   },
 
-  // Time-series trends for chart rendering
+  // M4: Time-series trends — now cached in Redis (was uncached, called 3× per dashboard load)
   getTrends: async (req: any, res: Response) => {
     try {
       const { metric = 'followers', platform, dateFrom, dateTo, artistId } = req.query;
 
-      const where: any = {};
+      // Build a cache key that captures all query params so different filters don't collide
+      const cacheKey = `trends:${metric}:${platform || 'all'}:${artistId || 'all'}:${dateFrom || ''}:${dateTo || ''}`;
 
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return res.status(200).json({
+          success: true,
+          data: { trends: JSON.parse(cached) },
+          cached: true,
+        });
+      }
+
+      const where: any = {};
       if (artistId) where.artistId = artistId;
       if (platform) where.platform = platform.toUpperCase();
       if (dateFrom || dateTo) {
@@ -90,10 +95,9 @@ export const analyticsController = {
         take: 1000,
       });
 
-      // Transform for chart: { date: '2025-01-01', followers: 1000, likes: 500 }
       const trends = metrics.map((m) => {
         const point: any = { date: m.metricDate };
-        point[metric] = (m as any)[metric] || 0;
+        point[metric as string] = (m as any)[metric as string] || 0;
         point.followers = m.followers;
         point.likes = m.likes;
         point.streams = m.streams;
@@ -101,10 +105,22 @@ export const analyticsController = {
         return point;
       });
 
-      res.status(200).json({
-        success: true,
-        data: { trends },
-      });
+      // Trends change less frequently than real-time — cache for 30 minutes
+      // (shorter than 1hr because date-range queries may be more specific)
+      await redis.setex(cacheKey, 30 * 60, JSON.stringify(trends));
+
+      const safeData = JSON.parse(
+  JSON.stringify({ trends }, (_, value) =>
+    typeof value === 'bigint' ? Number(value) : value
+  )
+);
+
+res.status(200).json({
+  success: true,
+  data: safeData,
+});
+
+
     } catch (error) {
       throw error;
     }
@@ -132,25 +148,24 @@ export const analyticsController = {
       const data = await prisma.audienceDemographic.groupBy({
         by: ['dimensionValue'],
         where,
-        _sum: {
-          absoluteCount: true,
-        },
-        _avg: {
-          percentage: true,
-        },
-        orderBy: {
-          _sum: {
-            absoluteCount: 'desc',
-          },
-        },
+        _sum: { absoluteCount: true },
+        _avg: { percentage: true },
+        orderBy: { _sum: { absoluteCount: 'desc' } },
       });
 
       await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(data));
 
-      res.status(200).json({
-        success: true,
-        data: { breakdown: data },
-      });
+const safeData = JSON.parse(
+  JSON.stringify({ breakdown: data }, (_, value) =>
+    typeof value === 'bigint' ? Number(value) : value
+  )
+);
+
+res.status(200).json({
+  success: true,
+  data: safeData,
+});
+      
     } catch (error) {
       throw error;
     }
@@ -178,25 +193,25 @@ export const analyticsController = {
       const data = await prisma.audienceDemographic.groupBy({
         by: ['dimensionValue'],
         where,
-        _sum: {
-          absoluteCount: true,
-        },
-        _avg: {
-          percentage: true,
-        },
-        orderBy: {
-          _sum: {
-            absoluteCount: 'desc',
-          },
-        },
+        _sum: { absoluteCount: true },
+        _avg: { percentage: true },
+        orderBy: { _sum: { absoluteCount: 'desc' } },
       });
 
       await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(data));
 
-      res.status(200).json({
-        success: true,
-        data: { breakdown: data },
-      });
+     const safeData = JSON.parse(
+  JSON.stringify({ breakdown: data }, (_, value) =>
+    typeof value === 'bigint' ? Number(value) : value
+  )
+);
+
+res.status(200).json({
+  success: true,
+  data: safeData,
+});
+
+
     } catch (error) {
       throw error;
     }
@@ -214,24 +229,16 @@ export const analyticsController = {
       const data = await prisma.audienceDemographic.groupBy({
         by: ['dimensionValue'],
         where,
-        _sum: {
-          absoluteCount: true,
-        },
-        orderBy: {
-          _sum: {
-            absoluteCount: 'desc',
-          },
-        },
+        _sum: { absoluteCount: true },
+        orderBy: { _sum: { absoluteCount: 'desc' } },
         take: 100,
       });
 
-      // Return GeoJSON-like structure for frontend map
-      // Frontend will need to geocode dimensionValue (city names) to coordinates
       const features = data.map((item, index) => ({
         type: 'Feature',
         geometry: {
           type: 'Point',
-          coordinates: [0, 0], // Placeholder - frontend geocodes city names
+          coordinates: [0, 0],
         },
         properties: {
           name: item.dimensionValue,
@@ -252,7 +259,7 @@ export const analyticsController = {
     }
   },
 
-  // Genre popularity
+  // Genre popularity — single query, Redis cached (N+1 fix already applied)
   getGenres: async (req: any, res: Response) => {
     try {
       const { artistId } = req.query;
@@ -262,60 +269,46 @@ export const analyticsController = {
       if (cached) {
         return res.status(200).json({
           success: true,
-          data: JSON.parse(cached),
+          data: { genres: JSON.parse(cached) },
           cached: true,
         });
       }
 
-      // Get genre popularity based on artist counts and platform metrics
       const genres = await prisma.genre.findMany({
         include: {
-          _count: {
-            select: { artists: true },
+          artists: {
+            include: {
+              artist: {
+                include: {
+                  platformMetrics: {
+                    orderBy: { metricDate: 'desc' },
+                    take: 1,
+                    select: { followers: true },
+                  },
+                },
+              },
+            },
           },
         },
         orderBy: {
-          artists: {
-            _count: 'desc',
-          },
+          artists: { _count: 'desc' },
         },
       });
 
-      const enrichedGenres = await Promise.all(
-        genres.map(async (genre) => {
-          const artistsInGenre = await prisma.artist.findMany({
-            where: {
-              genres: {
-                some: { genreId: genre.id },
-              },
-            },
-            select: { id: true },
-          });
+      const enrichedGenres = genres.map((genre) => {
+        const artistCount = genre.artists.length;
+        const totalFollowers = genre.artists.reduce((sum, ag) => {
+          const latestFollowers = ag.artist.platformMetrics[0]?.followers || 0;
+          return sum + Number(latestFollowers);
+        }, 0);
 
-          const artistIds = artistsInGenre.map((a) => a.id);
-
-          // Get total followers for this genre (sum of latest platform metrics)
-          const latestMetrics = await prisma.platformMetric.groupBy({
-            by: ['artistId'],
-            where: {
-              artistId: { in: artistIds },
-            },
-            _max: {
-              metricDate: true,
-              followers: true,
-            },
-          });
-
-          const totalFollowers = latestMetrics.reduce((sum, m) => sum + (m._max.followers || 0), 0);
-
-          return {
-            genreId: genre.id,
-            genreName: genre.name,
-            artistCount: genre._count.artists,
-            totalFollowers,
-          };
-        })
-      );
+        return {
+          genreId: genre.id,
+          genreName: genre.name,
+          artistCount,
+          totalFollowers,
+        };
+      });
 
       await redis.setex(cacheKey, CACHE_TTL, JSON.stringify(enrichedGenres));
 

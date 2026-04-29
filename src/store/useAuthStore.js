@@ -3,7 +3,8 @@ import client from '../api/client'
 
 const useAuthStore = create((set) => ({
   token: localStorage.getItem('token') || null,
-  user: JSON.parse(localStorage.getItem('user')) || null,
+  // M6: wrap JSON.parse in try-catch — malformed value in localStorage won't crash store init
+  user: (() => { try { return JSON.parse(localStorage.getItem('user')) } catch { return null } })(),
   role: localStorage.getItem('role') || null,
   isLoading: false,
   error: null,
@@ -12,32 +13,11 @@ const useAuthStore = create((set) => ({
     set({ isLoading: true, error: null })
     try {
       const response = await client.post('/auth/login', { email, password })
-      console.log('Login API response:', response.data) // Debug: See actual response structure
 
-      // Handle both possible response structures:
-      // Case 1: { data: { token: "...", user: { ... } } }
-      // Case 2: { data: { accessToken: "...", user: { ... } } }
-      // Case 3: { data: { data: { token: "...", user: { ... } } } }
-      let token = null
-      let userData = null
-
-      if (response.data.data && response.data.data.token) {
-        // Structure: { data: { data: { token: "...", user: ... } } }
-        token = response.data.data.token
-        userData = response.data.data.user
-      } else if (response.data.token) {
-        // Structure: { data: { token: "...", user: ... } }
-        token = response.data.token
-        userData = response.data.user
-      } else if (response.data.accessToken) {
-        // Structure: { data: { accessToken: "...", user: ... } }
-        token = response.data.accessToken
-        userData = response.data.user
-      } else if (response.data.data && response.data.data.accessToken) {
-        // Structure: { data: { data: { accessToken: "...", user: ... } } }
-        token = response.data.data.accessToken
-        userData = response.data.data.user
-      }
+      // M8: backend always returns { success: true, data: { accessToken, user } }
+      // Single branch — no more guessing at shape variants
+      const token = response.data?.data?.accessToken
+      const userData = response.data?.data?.user
 
       if (!token || !userData) {
         throw new Error('Invalid response format from login API')
@@ -57,11 +37,10 @@ const useAuthStore = create((set) => ({
   },
 
   logout: () => {
-    // Clean up any incorrect storage keys that might have been used
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     localStorage.removeItem('role')
-    localStorage.removeItem('auth') // Remove incorrect key if present
+    localStorage.removeItem('auth') // legacy key cleanup
     set({ token: null, user: null, role: null, error: null })
   },
 

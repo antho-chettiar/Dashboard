@@ -1,4 +1,5 @@
 import axios from 'axios'
+import useAuthStore from '../store/useAuthStore'
 
 const client = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
@@ -12,13 +13,16 @@ client.interceptors.request.use((config) => {
   return config
 })
 
-// Redirect to login on 401
+// On 401 — clear only auth state, then redirect cleanly
 client.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.clear()
-      window.location.href = '/login'
+      // Use the store's logout so only auth keys are removed
+      // (theme, filters, and other localStorage entries are preserved)
+      useAuthStore.getState().logout()
+      // replace() avoids leaving the protected page in browser history
+      window.location.replace('/login')
     }
     return Promise.reject(error)
   }
