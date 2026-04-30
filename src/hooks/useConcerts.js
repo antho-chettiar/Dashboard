@@ -6,12 +6,13 @@ import client from '../api/client'
  * Supports filtering by city and optional date range.
  * Returns data, loading, and error states.
  */
-export function useConcerts({ city, startDate, endDate } = {}) {
+export function useConcerts({ city, startDate, endDate, limit } = {}) {
   // Build query string based on provided filters
   const params = new URLSearchParams()
   if (city && city !== 'All') params.append('city', city)
   if (startDate) params.append('startDate', startDate)
   if (endDate) params.append('endDate', endDate)
+  if (limit) params.append('limit', limit)
   const queryString = params.toString() ? `?${params.toString()}` : ''
 
   const { data, isLoading, error } = useQuery({
@@ -34,8 +35,8 @@ export function useConcerts({ city, startDate, endDate } = {}) {
         tickets_sold: c.ticketsSold,
         avg_ticket_price: c.avgTicketPrice,
         total_revenue: c.totalRevenue,
-        lat: c.lat ?? 0,
-        lng: c.lng ?? 0,
+        lat: c.lat,
+        lng: c.lng,
         sponsors: c.sponsors || [],
       }))
     },

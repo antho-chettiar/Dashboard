@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Calendar, MapPin, TrendingUp, Ticket, User, Filter } from 'lucide-react'
 import PageHeader from '../components/ui/PageHeader'
 import EmptyState from '../components/ui/EmptyState'
-import { mockConcerts } from '../utils/mockData'
 import { formatNumber, formatCurrency, formatDate, sellThrough } from '../utils/formatters'
+import { useConcerts } from '../hooks/useConcerts'
 
 
 
@@ -15,13 +15,17 @@ function Concerts() {
   const [filterDate, setDate]       = useState('')
   const [filterCity, setFilterCity] = useState('')
 
-  const filtered = mockConcerts
+  const { data: concertsData, isLoading, error } = useConcerts()
+  const concerts = concertsData || []
+
+  const filtered = concerts
     .filter(c => {
-      const matchSearch    = c.artist.toLowerCase().includes(search.toLowerCase()) ||
-                             c.city.toLowerCase().includes(search.toLowerCase()) ||
-                             c.venue.toLowerCase().includes(search.toLowerCase())
-      const matchDate      = !filterDate || c.date.includes(filterDate)
-      const matchCityInput = !filterCity || c.city.toLowerCase().includes(filterCity.toLowerCase())
+      const matchSearch    = (c.artist || '').toLowerCase().includes(search.toLowerCase()) ||
+                             (c.city || '').toLowerCase().includes(search.toLowerCase()) ||
+                             (c.venue || '').toLowerCase().includes(search.toLowerCase())
+      const dateString     = c.date instanceof Date ? c.date.toISOString() : String(c.date || '')
+      const matchDate      = !filterDate || dateString.includes(filterDate)
+      const matchCityInput = !filterCity || (c.city || '').toLowerCase().includes(filterCity.toLowerCase())
       return matchSearch && matchDate && matchCityInput
     })
     .sort((a, b) => {
@@ -43,7 +47,7 @@ function Concerts() {
       <div className="fixed top-32 right-20 w-72 h-72 rounded-full pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.06), transparent 70%)', filter: 'blur(40px)' }} />
 
-      <PageHeader title="Concerts" subtitle={`${mockConcerts.length} concerts on record`} />
+      <PageHeader title="Concerts" subtitle={`${concerts.length} concerts on record`} />
 
       {/* Search + Sort row */}
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
@@ -107,10 +111,14 @@ function Concerts() {
 
       <p className="text-xs mb-4 uppercase tracking-widest"
         style={{ color: 'var(--text-muted)', fontSize: '10px' }}>
-        Showing {filtered.length} of {mockConcerts.length} concerts
+        Showing {filtered.length} of {concerts.length} concerts
       </p>
 
-      {filtered.length === 0 ? (
+      {isLoading ? (
+        <div className="p-8 text-center text-sm" style={{ color: 'var(--text-muted)' }}>Loading...</div>
+      ) : error ? (
+        <div className="p-8 text-center text-sm" style={{ color: 'var(--accent-red)' }}>Failed to load concerts</div>
+      ) : filtered.length === 0 ? (
         <EmptyState title="No concerts found" subtitle="Try adjusting your search or filters" />
       ) : (
         <div className="glass-card overflow-hidden animate-fade-up" style={{ overflowX: 'auto' }}>

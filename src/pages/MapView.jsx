@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, useMap } from 'react-leaflet'
 import L from 'leaflet'
 import PageHeader from '../components/ui/PageHeader'
-import { mockConcerts, mockArtists } from '../utils/mockData'
+import { useConcerts } from '../hooks/useConcerts'
 import { formatNumber, formatCurrency, formatDate } from '../utils/formatters'
 import { MapPin, Ticket, DollarSign, Music2, X } from 'lucide-react'
 
@@ -14,35 +14,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 })
 
-// ── Inject pulse CSS once ──
-const PULSE_CSS = `
-  .venue-marker { position: relative; cursor: pointer; }
-  .venue-marker .dot {
-    position: absolute; inset: 0; border-radius: 50%;
-    background: var(--m-color, #818CF8);
-    border: 2px solid rgba(255,255,255,0.35);
-    box-shadow: 0 0 0 0 var(--m-glow, rgba(129,140,248,0.6));
-    animation: pulse-venue 2.4s ease-out infinite;
-  }
-  .venue-marker.selected .dot {
-    border-color: #fff;
-    box-shadow: 0 0 16px var(--m-glow, rgba(129,140,248,0.8));
-    animation: none;
-  }
-  @keyframes pulse-venue {
-    0%   { box-shadow: 0 0 0 0   var(--m-glow, rgba(129,140,248,0.6)); }
-    70%  { box-shadow: 0 0 0 12px rgba(0,0,0,0); }
-    100% { box-shadow: 0 0 0 0   rgba(0,0,0,0); }
-  }
-`
-if (!document.getElementById('venue-pulse-css')) {
-  const el = document.createElement('style')
-  el.id = 'venue-pulse-css'
-  el.textContent = PULSE_CSS
-  document.head.appendChild(el)
-}
 
-const ARTISTS = ['All Artists', ...mockArtists.map(a => a.name)]
 
 function sellColor(sold, cap) {
   const p = sold / cap
@@ -107,46 +79,21 @@ function ConcertMarkers({ concerts, selectedId, onSelect }) {
   return null
 }
 
-// Inject tooltip CSS
-const TT_CSS = `
-  .venue-tooltip .leaflet-tooltip {
-    background: rgba(8,11,20,0.92) !important;
-    border: 1px solid rgba(255,255,255,0.12) !important;
-    border-radius: 10px !important;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
-    padding: 8px 12px !important;
-    color: #F0EEFF !important;
-    backdrop-filter: blur(12px);
-  }
-  .venue-tooltip .leaflet-tooltip::before { display: none !important; }
-  .leaflet-control-zoom {
-    border: 1px solid rgba(255,255,255,0.1) !important;
-    border-radius: 10px !important;
-    overflow: hidden;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.35) !important;
-  }
-  .leaflet-control-zoom a {
-    background: rgba(8,11,20,0.88) !important;
-    color: #A8A4C8 !important;
-    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
-    font-size: 16px !important;
-    line-height: 28px !important;
-    width: 30px !important; height: 30px !important;
-  }
-  .leaflet-control-zoom a:hover { background: rgba(99,102,241,0.25) !important; color:#fff !important; }
-  .leaflet-control-attribution { display: none !important; }
-`
-if (!document.getElementById('venue-tooltip-css')) {
-  const el = document.createElement('style'); el.id = 'venue-tooltip-css'; el.textContent = TT_CSS
-  document.head.appendChild(el)
-}
+
 
 // ── Main Page ──
 function MapView() {
   const [selectedArtist, setArtist]   = useState('All Artists')
   const [selectedConcert, setConcert] = useState(null)
 
-  const filtered = mockConcerts.filter(c =>
+  const { data: concertsRaw, isLoading, error } = useConcerts({ limit: 1000 })
+  const concerts = concertsRaw || []
+
+  const validConcerts = concerts.filter(c => c.lat != null && c.lng != null && !isNaN(c.lat) && !isNaN(c.lng))
+
+  const ARTISTS = ['All Artists', ...Array.from(new Set(validConcerts.map(c => c.artist))).sort()]
+
+  const filtered = validConcerts.filter(c =>
     selectedArtist === 'All Artists' || c.artist === selectedArtist
   )
 
@@ -156,6 +103,28 @@ function MapView() {
   const selStyle = {
     background: 'var(--bg-card)', border: '1px solid var(--border)',
     color: 'var(--text-primary)', fontFamily: 'Satoshi',
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
+        <PageHeader title="Tour Map" subtitle="Geographic view of concert locations and performance" />
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Loading map data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col" style={{ height: 'calc(100vh - 120px)' }}>
+        <PageHeader title="Tour Map" subtitle="Geographic view of concert locations and performance" />
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-sm" style={{ color: 'var(--accent-red)' }}>Failed to load map data.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -196,23 +165,29 @@ function MapView() {
         {/* Map */}
         <div className="flex-1 rounded-2xl overflow-hidden"
           style={{ border: '1px solid var(--border)', boxShadow: '0 4px 32px rgba(0,0,0,0.25)' }}>
-          <MapContainer
-            center={[20.5937, 78.9629]} zoom={5}
-            style={{ height: '100%', width: '100%', background: '#0b0f1e' }}
-            zoomControl={true}
-          >
-            {/* CartoDB Dark Matter – clean, minimal, no street clutter */}
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              subdomains="abcd"
-              maxZoom={19}
-            />
-            <ConcertMarkers
-              concerts={filtered}
-              selectedId={selectedConcert?.id}
-              onSelect={setConcert}
-            />
-          </MapContainer>
+          {validConcerts.length === 0 ? (
+            <div className="w-full h-full flex flex-col items-center justify-center bg-gray-900" style={{ background: '#0b0f1e' }}>
+              <MapPin size={32} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+              <p className="text-sm" style={{ color: 'var(--text-muted)' }}>No concert locations available.</p>
+            </div>
+          ) : (
+            <MapContainer
+              center={[20.5937, 78.9629]} zoom={5}
+              style={{ height: '100%', width: '100%', background: '#0b0f1e' }}
+              zoomControl={true}
+            >
+              <TileLayer
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                subdomains="abcd"
+                maxZoom={19}
+              />
+              <ConcertMarkers
+                concerts={filtered}
+                selectedId={selectedConcert?.id}
+                onSelect={setConcert}
+              />
+            </MapContainer>
+          )}
         </div>
 
         {/* Sidebar */}

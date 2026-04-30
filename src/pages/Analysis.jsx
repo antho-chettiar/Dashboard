@@ -9,8 +9,9 @@ import ChartContainer from '../components/charts/ChartContainer'
 import BarChart from '../components/charts/BarChart'
 import LineChart from '../components/charts/LineChart'
 import RoGBadge from '../components/ui/RoGBadge'
-import { mockArtists, mockConcerts, mockFollowerTrends } from '../utils/mockData'
 import { formatNumber, formatCurrency } from '../utils/formatters'
+import { useArtists } from '../hooks/useArtists'
+import { useConcerts } from '../hooks/useConcerts'
 
 const TABS = ['Profitability Predictor', 'Artist Comparison']
 
@@ -25,21 +26,36 @@ const CITIES = [
   { name: 'Ahmedabad', multiplier: 0.9, demand: 68, population: 8400000  },
 ]
 
-// Predict revenue for an artist at a city
-function predictRevenue(artist, city) {
+// Predict revenue for an artist at a city based on historical concert data
+function predictRevenue(artist, city, artistConcerts = []) {
   if (!artist || !city) return null
-  const totalFollowers  = Object.values(artist.followers).reduce((a, b) => a + b, 0)
-  const avgRoG          = Object.values(artist.rog).reduce((a, b) => a + b, 0) / Object.values(artist.rog).length
-  const baseCapacity    = Math.min(Math.floor(totalFollowers * 0.002), 60000)
-  const adjustedCap     = Math.floor(baseCapacity * city.multiplier)
-  const sellThrough     = Math.min(0.65 + (avgRoG / 100) * 8 + city.demand / 1000, 0.99)
-  const ticketsSold     = Math.floor(adjustedCap * sellThrough)
-  const atp             = 1500 + (totalFollowers / 1000000) * 800 * city.multiplier
-  const ticketRevenue   = ticketsSold * atp
-  const sponsorRevenue  = ticketRevenue * 0.18
-  const totalRevenue    = ticketRevenue + sponsorRevenue
-  const roi             = ((totalRevenue - totalRevenue * 0.45) / (totalRevenue * 0.45)) * 100
-  const popularityScore = Math.min(Math.round(city.demand * 0.6 + avgRoG * 4 + (totalFollowers / 1000000) * 2), 99)
+
+  let avgTicketsSold = 15000
+  let avgAtp = 2000
+  let avgSponsor = 500000
+
+  if (artistConcerts.length > 0) {
+    const totalTix = artistConcerts.reduce((s, c) => s + c.tickets_sold, 0)
+    const totalRev = artistConcerts.reduce((s, c) => s + c.total_revenue, 0)
+    const totalAtp = artistConcerts.reduce((s, c) => s + (c.avg_ticket_price || 0), 0)
+    const totalSponsor = artistConcerts.reduce((s, c) => s + (c.sponsors?.length ? c.total_revenue * 0.15 : c.total_revenue * 0.1), 0)
+
+    avgTicketsSold = Math.floor(totalTix / artistConcerts.length) || 15000
+    avgAtp = (totalAtp / artistConcerts.length) || (totalRev / totalTix) || 2000
+    avgSponsor = totalSponsor / artistConcerts.length
+  }
+
+  const adjustedCap = Math.floor(avgTicketsSold * 1.2 * city.multiplier)
+  const ticketsSold = Math.floor(avgTicketsSold * city.multiplier)
+  const sellThrough = adjustedCap > 0 ? Math.min(ticketsSold / adjustedCap, 0.99) : 0
+  
+  const atp = avgAtp * city.multiplier
+  const ticketRevenue = ticketsSold * atp
+  const sponsorRevenue = ticketRevenue * 0.18 * (city.demand / 100)
+  const totalRevenue = ticketRevenue + sponsorRevenue
+  const roi = totalRevenue > 0 ? ((totalRevenue - totalRevenue * 0.45) / (totalRevenue * 0.45)) * 100 : 0
+  
+  const popularityScore = Math.min(Math.round(city.demand * 0.6 + (ticketsSold / 50000) * 40), 99)
 
   return {
     adjustedCap, ticketsSold, atp,
@@ -80,19 +96,21 @@ function StatBox({ label, value, sub, color, delay = 0 }) {
 }
 
 // ── PROFITABILITY PREDICTOR ──
-function ProfitabilityPredictor() {
+function ProfitabilityPredictor({ artists, concerts }) {
   const [selectedArtist, setArtist] = useState('')
   const [selectedCity, setCity]     = useState('')
 
-  const artist = mockArtists.find(a => a.id === selectedArtist)
+  const artist = artists.find(a => a.id === selectedArtist)
   const city   = CITIES.find(c => c.name === selectedCity)
-  const pred   = predictRevenue(artist, city)
+  
+  const artistConcerts = concerts.filter(c => c.artistId === selectedArtist)
+  const pred   = predictRevenue(artist, city, artistConcerts)
 
   // City comparison for selected artist
   const cityComparison = artist
     ? CITIES.map(c => ({
         name:    c.name,
-        revenue: predictRevenue(artist, c)?.totalRevenue || 0,
+        revenue: predictRevenue(artist, c, artistConcerts)?.totalRevenue || 0,
       })).sort((a, b) => b.revenue - a.revenue)
     : []
 
@@ -119,7 +137,7 @@ function ProfitabilityPredictor() {
               }}
             >
               <option value="">Choose an artist...</option>
-              {mockArtists.map(a => (
+              {artists.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
@@ -270,41 +288,39 @@ function ProfitabilityPredictor() {
 }
 
 // ── ARTIST COMPARISON ──
-// Unique cities from concert data
-const CONCERT_CITIES = ['All Cities', ...Array.from(new Set(mockConcerts.map(c => c.city))).sort()]
+function ArtistComparison({ artists, concerts }) {
+  const CONCERT_CITIES = ['All Cities', ...Array.from(new Set(concerts.map(c => c.city))).sort()]
 
-function ArtistComparison() {
   const [artistA, setArtistA]       = useState('')
   const [artistB, setArtistB]       = useState('')
   const [selectedCity, setSelCity]  = useState('All Cities')
 
-  const a = mockArtists.find(x => x.id === artistA)
-  const b = mockArtists.find(x => x.id === artistB)
+  const a = artists.find(x => x.id === artistA)
+  const b = artists.find(x => x.id === artistB)
 
-  const concertsA = mockConcerts.filter(c =>
-    c.artist === a?.name && (selectedCity === 'All Cities' || c.city === selectedCity)
+  const concertsA = concerts.filter(c =>
+    c.artistId === artistA && (selectedCity === 'All Cities' || c.city === selectedCity)
   )
-  const concertsB = mockConcerts.filter(c =>
-    c.artist === b?.name && (selectedCity === 'All Cities' || c.city === selectedCity)
+  const concertsB = concerts.filter(c =>
+    c.artistId === artistB && (selectedCity === 'All Cities' || c.city === selectedCity)
   )
 
-  const statsA = a ? {
-    totalFollowers:  Object.values(a.followers).reduce((s, v) => s + v, 0),
-    avgRoG:          Object.values(a.rog).reduce((s, v) => s + v, 0) / Object.values(a.rog).length,
-    totalRevenue:    concertsA.reduce((s, c) => s + c.total_revenue, 0),
-    totalTickets:    concertsA.reduce((s, c) => s + c.tickets_sold, 0),
-    concertCount:    concertsA.length,
-    topPlatform:     Object.entries(a.followers).sort((x, y) => y[1] - x[1])[0],
-  } : null
+  const getStats = (artist, artistConcerts) => {
+    if (!artist) return null
+    const followersValues = Object.values(artist.followers || {})
+    const rogValues = Object.values(artist.rog || {})
+    return {
+      totalFollowers: followersValues.reduce((s, v) => s + v, 0),
+      avgRoG:         rogValues.reduce((s, v) => s + v, 0) / (rogValues.length || 1),
+      totalRevenue:   artistConcerts.reduce((s, c) => s + c.total_revenue, 0),
+      totalTickets:   artistConcerts.reduce((s, c) => s + c.tickets_sold, 0),
+      concertCount:   artistConcerts.length,
+      topPlatform:    Object.entries(artist.followers || {}).sort((x, y) => y[1] - x[1])[0] || ['Unknown', 0],
+    }
+  }
 
-  const statsB = b ? {
-    totalFollowers:  Object.values(b.followers).reduce((s, v) => s + v, 0),
-    avgRoG:          Object.values(b.rog).reduce((s, v) => s + v, 0) / Object.values(b.rog).length,
-    totalRevenue:    concertsB.reduce((s, c) => s + c.total_revenue, 0),
-    totalTickets:    concertsB.reduce((s, c) => s + c.tickets_sold, 0),
-    concertCount:    concertsB.length,
-    topPlatform:     Object.entries(b.followers).sort((x, y) => y[1] - x[1])[0],
-  } : null
+  const statsA = getStats(a, concertsA)
+  const statsB = getStats(b, concertsB)
 
   const comparisonRows = statsA && statsB ? [
     { label: 'Total Followers',  a: formatNumber(statsA.totalFollowers), b: formatNumber(statsB.totalFollowers),
@@ -346,7 +362,7 @@ function ArtistComparison() {
             style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'Satoshi' }}
           >
             <option value="">Choose artist A...</option>
-            {mockArtists.map(x => (
+            {artists.map(x => (
               <option key={x.id} value={x.id}>{x.name}</option>
             ))}
           </select>
@@ -374,7 +390,7 @@ function ArtistComparison() {
             style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-primary)', fontFamily: 'Satoshi' }}
           >
             <option value="">Choose artist B...</option>
-            {mockArtists.map(x => (
+            {artists.map(x => (
               <option key={x.id} value={x.id}>{x.name}</option>
             ))}
           </select>
@@ -585,6 +601,28 @@ function ArtistComparison() {
 function Analysis() {
   const [activeTab, setTab] = useState('Profitability Predictor')
 
+  const { data: artists, isLoading: loadingArtists, error: errArtists } = useArtists()
+  const { data: concerts, isLoading: loadingConcerts, error: errConcerts } = useConcerts()
+
+  if (loadingArtists || loadingConcerts) {
+    return (
+      <div className="relative p-8 text-center" style={{ color: 'var(--text-muted)' }}>
+        Loading analysis data...
+      </div>
+    )
+  }
+
+  if (errArtists || errConcerts) {
+    return (
+      <div className="relative p-8 text-center" style={{ color: 'var(--accent-red)' }}>
+        Failed to load analysis data.
+      </div>
+    )
+  }
+
+  const safeArtists = artists || []
+  const safeConcerts = concerts || []
+
   return (
     <div className="relative">
       {/* Ambient glows */}
@@ -618,8 +656,8 @@ function Analysis() {
         ))}
       </div>
 
-      {activeTab === 'Profitability Predictor' && <ProfitabilityPredictor />}
-      {activeTab === 'Artist Comparison'       && <ArtistComparison />}
+      {activeTab === 'Profitability Predictor' && <ProfitabilityPredictor artists={safeArtists} concerts={safeConcerts} />}
+      {activeTab === 'Artist Comparison'       && <ArtistComparison artists={safeArtists} concerts={safeConcerts} />}
     </div>
   )
 }
