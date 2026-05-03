@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,60 +8,78 @@ datasource db {
 }
 
 model Artist {
-  id                 String            @id @default(cuid())
-  name               String
-  nationality        String?
-  bio                String?
-  photoUrl           String?
-  active             Boolean           @default(true)
-  genres             ArtistGenre[]
-  platformMetrics    PlatformMetric[]
-  concerts           Concert[]
-  audienceDemographics AudienceDemographic[]
-  created_at         DateTime          @default(now())
-  updated_at         DateTime          @updatedAt
+  id                      String                @id @default(dbgenerated("gen_random_uuid()"))
+  artistName              String                @unique
+  displayName             String?
+  age                     Int?
+  gender                  String?
+  genre                   String?
+  nationality             String?
+  bio                     String?
+  photoUrl                String?
+  wikiUrl                 String?
+  active                  Boolean               @default(true)
+  instagramUrl            String?
+  facebookUrl             String?
+  twitterUrl              String?
+  spotifyUrl              String?
+  youtubeUrl              String?
+  appleMusicUrl           String?
+  instagramFollowers      Int?
+  facebookFollowers       Int?
+  twitterFollowers        Int?
+  spotifyMonthlyListeners Int?
+  youtubeSubscribers      Int?
+  appleMusicListeners     Int?
+  lastUpdated             DateTime?
+  created_at              DateTime              @default(now())
+  updated_at              DateTime              @updatedAt
+  genres                  ArtistGenre[]
+  audienceDemographics    AudienceDemographic[]
+  concerts                Concert[]
+  platformMetrics         PlatformMetric[]
 
-  @@index([name])
   @@index([active])
+  @@index([artistName])
   @@map("artists")
 }
 
 model Genre {
-  id         Int               @id @default(autoincrement())
-  name       String            @unique
+  id         String        @id @default(cuid())
+  name       String        @unique
+  created_at DateTime      @default(now())
   artists    ArtistGenre[]
-  created_at DateTime          @default(now())
 
   @@map("genres")
 }
 
 model ArtistGenre {
-  artist   Artist  @relation(fields: [artistId], references: [id], onDelete: Cascade)
   artistId String
-  genre    Genre   @relation(fields: [genreId], references: [id], onDelete: Cascade)
-  genreId  Int
+  genreId  String
+  artist   Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
+  genre    Genre  @relation(fields: [genreId], references: [id], onDelete: Cascade)
 
   @@id([artistId, genreId])
   @@map("artist_genres")
 }
 
 model PlatformMetric {
-  id              String            @id @default(cuid())
-  artist          Artist            @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  artistId        String
-  platform        Platform
-  metricDate      DateTime          @db.Date
-  followers       BigInt            @default(0)
-  likes           BigInt            @default(0)
-  shares          BigInt            @default(0)
-  comments        BigInt            @default(0)
-  streams         BigInt            @default(0)
-  rogDaily        Decimal?          @db.Decimal(8, 4)
-  rogWeekly       Decimal?          @db.Decimal(8, 4)
-  rogMonthly      Decimal?          @db.Decimal(8, 4)
-  source          MetricSource      @default(API)
-  rawSnapshot     Json?
-  created_at      DateTime          @default(now())
+  id          String       @id @default(cuid())
+  artistId    String
+  platform    Platform
+  metricDate  DateTime     @db.Date
+  followers   Int          @default(0)
+  likes       Int          @default(0)
+  shares      Int          @default(0)
+  comments    Int          @default(0)
+  streams     Int          @default(0)
+  rogDaily    Float?
+  rogWeekly   Float?
+  rogMonthly  Float?
+  source      MetricSource @default(API)
+  rawSnapshot Json?
+  created_at  DateTime     @default(now())
+  artist      Artist       @relation(fields: [artistId], references: [id], onDelete: Cascade)
 
   @@unique([artistId, platform, metricDate])
   @@index([artistId, platform, metricDate])
@@ -73,26 +88,26 @@ model PlatformMetric {
 }
 
 model Concert {
-  id               String            @id @default(cuid())
-  artist           Artist            @relation(fields: [artistId], references: [id], onDelete: Cascade)
-  artistId         String
-  concertName      String?
-  concertDate      DateTime          @db.Date
-  city             String
-  state            String?
-  country          String
-  latitude         Decimal?          @db.Decimal(9, 6)
-  longitude        Decimal?          @db.Decimal(9, 6)
-  venueName        String?
-  capacity         Int?
-  ticketsSold      Int               @default(0)
-  avgTicketPrice   Decimal?          @db.Decimal(10, 2)
-  totalRevenue     Decimal?          @db.Decimal(14, 2)
-  currency         String            @default("INR")
-  notes            String?
-  created_at       DateTime          @default(now())
-
+  id                   String                @id @default(cuid())
+  artistId             String
+  concertName          String?
+  concertDate          DateTime              @db.Date
+  city                 String
+  state                String?
+  country              String
+  latitude             Float?
+  longitude            Float?
+  venueName            String?
+  capacity             Int?
+  ticketsSold          Int                   @default(0)
+  avgTicketPrice       Float?
+  totalRevenue         Float?
+  currency             String                @default("INR")
+  notes                String?
+  created_at           DateTime              @default(now())
   audienceDemographics AudienceDemographic[]
+  artist               Artist                @relation(fields: [artistId], references: [id], onDelete: Cascade)
+
   @@index([artistId, concertDate])
   @@index([city])
   @@index([country])
@@ -100,18 +115,18 @@ model Concert {
 }
 
 model AudienceDemographic {
-  id             String            @id @default(cuid())
-  artist         Artist?           @relation(fields: [artistId], references: [id], onDelete: SetNull)
+  id             String               @id @default(cuid())
   artistId       String?
-  concert        Concert?          @relation(fields: [concertId], references: [id], onDelete: SetNull)
   concertId      String?
   dimension      DemographicDimension
-  dimensionValue String            @db.VarChar(100)
-  percentage     Decimal?          @db.Decimal(5, 2)
+  dimensionValue String               @db.VarChar(100)
+  percentage     Float?
   absoluteCount  Int?
-  sourcePlatform String?           @db.VarChar(100)
-  metricDate     DateTime          @db.Date
-  created_at     DateTime          @default(now())
+  sourcePlatform String?              @db.VarChar(100)
+  metricDate     DateTime             @db.Date
+  created_at     DateTime             @default(now())
+  artist         Artist?              @relation(fields: [artistId], references: [id])
+  concert        Concert?             @relation(fields: [concertId], references: [id])
 
   @@index([artistId])
   @@index([concertId])
@@ -120,14 +135,14 @@ model AudienceDemographic {
 }
 
 model User {
-  id              String            @id @default(cuid())
-  email           String            @unique
-  passwordHash    String
-  role            UserRole          @default(VIEWER)
-  active          Boolean           @default(true)
-  refreshTokens   RefreshToken[]
-  created_at      DateTime          @default(now())
-  updated_at      DateTime          @updatedAt
+  id            String         @id @default(cuid())
+  email         String         @unique
+  passwordHash  String
+  role          UserRole       @default(VIEWER)
+  active        Boolean        @default(true)
+  created_at    DateTime       @default(now())
+  updated_at    DateTime       @updatedAt
+  refreshTokens RefreshToken[]
 
   @@index([email])
   @@map("users")
@@ -135,11 +150,11 @@ model User {
 
 model RefreshToken {
   id        String   @id @default(cuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId    String
   token     String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("refresh_tokens")
 }
