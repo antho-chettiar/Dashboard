@@ -49,7 +49,7 @@ export const artistController = {
           },
           skip,
           take: parseInt(limit as string),
-          orderBy: { name: 'asc' },
+          orderBy: { artistName: 'asc' },
         }),
         prisma.artist.count({ where }),
       ]);

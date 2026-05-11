@@ -12,6 +12,20 @@ const router = Router();
 router.get('/', concertController.list);
 
 /**
+ * @route GET /api/v1/concerts/cities
+ * @desc Get cities with aggregated statistics
+ * @access Public
+ */
+router.get('/cities', concertController.getCities);
+
+/**
+ * @route GET /api/v1/concerts/venues
+ * @desc Get venues with aggregated statistics
+ * @access Public
+ */
+router.get('/venues', concertController.getVenues);
+
+/**
  * @route GET /api/v1/concerts/:id
  * @desc Get single concert by ID
  * @access Public
@@ -41,19 +55,5 @@ router.put(
   isAdmin,
   concertController.update
 );
-
-/**
- * @route GET /api/v1/concerts/cities
- * @desc Get cities with aggregated statistics
- * @access Public
- */
-router.get('/cities', concertController.getCities);
-
-/**
- * @route GET /api/v1/concerts/venues
- * @desc Get venues with aggregated statistics
- * @access Public
- */
-router.get('/venues', concertController.getVenues);
 
 export default router;

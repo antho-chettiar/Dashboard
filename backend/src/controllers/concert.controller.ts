@@ -12,8 +12,11 @@ export const concertController = {
         artistId,
         city,
         country,
+        // Accept both naming conventions: dateFrom/dateTo (API) and startDate/endDate (frontend)
         dateFrom,
         dateTo,
+        startDate,
+        endDate,
       } = req.query;
 
       const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
@@ -25,10 +28,14 @@ export const concertController = {
       if (city) where.city = { contains: city as string, mode: 'insensitive' };
       if (country) where.country = { contains: country as string, mode: 'insensitive' };
 
-      if (dateFrom || dateTo) {
+      // Resolve effective date range from either param name
+      const effectiveDateFrom = (dateFrom || startDate) as string | undefined;
+      const effectiveDateTo = (dateTo || endDate) as string | undefined;
+
+      if (effectiveDateFrom || effectiveDateTo) {
         where.concertDate = {};
-        if (dateFrom) where.concertDate.gte = new Date(dateFrom as string);
-        if (dateTo) where.concertDate.lte = new Date(dateTo as string);
+        if (effectiveDateFrom) where.concertDate.gte = new Date(effectiveDateFrom);
+        if (effectiveDateTo) where.concertDate.lte = new Date(effectiveDateTo);
       }
 
       const [concerts, total] = await Promise.all([
@@ -38,7 +45,7 @@ export const concertController = {
             artist: {
               select: {
                 id: true,
-                name: true,
+                artistName: true,  // actual field name in Artist model
                 nationality: true,
               },
             },
@@ -50,10 +57,24 @@ export const concertController = {
         prisma.concert.count({ where }),
       ]);
 
+      // Transform response:
+      // - alias artistName -> name on artist object (frontend reads artist.name)
+      // - add concertName (artistName column repurposed; fallback null)
+      // - add lat/lng aliases for latitude/longitude
+      const transformedConcerts = concerts.map((c: any) => ({
+        ...c,
+        concertName: c.artistName ?? null,
+        lat: c.latitude !== null && c.latitude !== undefined ? Number(c.latitude) : null,
+        lng: c.longitude !== null && c.longitude !== undefined ? Number(c.longitude) : null,
+        artist: c.artist
+          ? { ...c.artist, name: c.artist.artistName }
+          : null,
+      }));
+
       res.status(200).json({
         success: true,
         data: {
-          concerts,
+          concerts: transformedConcerts,
           pagination: {
             page: parseInt(page as string),
             limit: parseInt(limit as string),
@@ -78,7 +99,7 @@ export const concertController = {
           artist: {
             select: {
               id: true,
-              name: true,
+              artistName: true,  // actual field name in Artist model
               nationality: true,
             },
           },
@@ -96,9 +117,16 @@ export const concertController = {
         });
       }
 
-      res.status(200).json({
+      // Alias artistName -> name for frontend compatibility
+      const result = concert as any;
+      const concertData: any = {
+        ...result,
+        artist: result.artist ? { ...result.artist, name: result.artist.artistName } : null,
+      };
+
+      return res.status(200).json({
         success: true,
-        data: { concert },
+        data: { concert: concertData },
       });
     } catch (error) {
       throw error;
@@ -125,24 +153,36 @@ export const concertController = {
 
       const concertDate = new Date(input.concertDate);
 
+      // Sanitize: strip fields Prisma won't accept and convert null → undefined for non-nullable columns
+      const { concertDate: _cd, ...rest } = input as any;
+      const prismaData: any = {
+        ...rest,
+        concertDate,
+        ticketsSold: input.ticketsSold ?? undefined,
+      };
+
       const concert = await prisma.concert.create({
-        data: {
-          ...input,
-          concertDate,
-        },
+        data: prismaData,
         include: {
           artist: {
             select: {
               id: true,
-              name: true,
+              artistName: true,  // actual field name in Artist model
             },
           },
         },
       });
 
-      res.status(201).json({
+      // Alias artistName -> name for frontend compatibility
+      const result = concert as any;
+      const concertData: any = {
+        ...result,
+        artist: result.artist ? { ...result.artist, name: result.artist.artistName } : null,
+      };
+
+      return res.status(201).json({
         success: true,
-        data: { concert },
+        data: { concert: concertData },
         message: 'Concert created successfully',
       });
     } catch (error) {
@@ -178,15 +218,22 @@ export const concertController = {
           artist: {
             select: {
               id: true,
-              name: true,
+              artistName: true,  // actual field name in Artist model
             },
           },
         },
       });
 
-      res.status(200).json({
+      // Alias artistName -> name for frontend compatibility
+      const result = concert as any;
+      const concertData: any = {
+        ...result,
+        artist: result.artist ? { ...result.artist, name: result.artist.artistName } : null,
+      };
+
+      return res.status(200).json({
         success: true,
-        data: { concert },
+        data: { concert: concertData },
         message: 'Concert updated successfully',
       });
     } catch (error) {
@@ -232,8 +279,8 @@ export const concertController = {
         totalTicketsSold: city._sum.ticketsSold || 0,
         totalRevenue: city._sum.totalRevenue || 0,
         totalCapacity: city._sum.capacity || 0,
-        avgTicketPrice: city._sum.totalRevenue && city._sum.ticketsSold && city._sum.ticketsSold > 0
-          ? city._sum.totalRevenue / city._sum.ticketsSold
+        avgTicketPrice: city._sum.totalRevenue && city._sum.ticketsSold && Number(city._sum.ticketsSold) > 0
+          ? Number(city._sum.totalRevenue) / Number(city._sum.ticketsSold)
           : 0,
       }));
 
@@ -247,7 +294,7 @@ export const concertController = {
   },
 
   // Get venues with aggregated stats
-  getVenues: async (req: any, res: Response) => {
+  getVenues: async (_req: any, res: Response) => {
     try {
       const venues = await prisma.concert.groupBy({
         by: ['venueName', 'city', 'country'],
@@ -274,8 +321,8 @@ export const concertController = {
         concertCount: venue._count.id,
         totalTicketsSold: venue._sum.ticketsSold || 0,
         totalRevenue: venue._sum.totalRevenue || 0,
-        avgTicketPrice: venue._sum.totalRevenue && venue._sum.ticketsSold && venue._sum.ticketsSold > 0
-          ? venue._sum.totalRevenue / venue._sum.ticketsSold
+        avgTicketPrice: venue._sum.totalRevenue && venue._sum.ticketsSold && Number(venue._sum.ticketsSold) > 0
+          ? Number(venue._sum.totalRevenue) / Number(venue._sum.ticketsSold)
           : 0,
       }));
 

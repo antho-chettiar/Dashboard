@@ -3,13 +3,29 @@ import { ArrowLeft, Calendar, MapPin, Users, Ticket, DollarSign, TrendingUp, Sta
 import ChartContainer from '../components/charts/ChartContainer'
 import BarChart from '../components/charts/BarChart'
 import EmptyState from '../components/ui/EmptyState'
-import { mockConcerts } from '../utils/mockData'
+import { useConcertById } from '../hooks/useConcertById'
 import { formatNumber, formatCurrency, formatDate } from '../utils/formatters'
 
 function ConcertDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const concert = mockConcerts.find(c => c.id === id)
+  const { data: concert, isLoading, error, isError } = useConcertById(id)
+
+  if (isLoading) return (
+    <div className="p-6 text-center">
+      <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      <p className="mt-2 text-sm" style={{ color: 'var(--text-muted)' }}>Loading concert details...</p>
+    </div>
+  )
+
+  if (isError) return (
+    <div className="p-6 text-center">
+      <EmptyState
+        title="Error loading concert"
+        subtitle={error?.message || "Unable to load concert details. Please try again."}
+      />
+    </div>
+  )
 
   if (!concert) return (
     <div className="p-6"><EmptyState title="Concert not found" subtitle="This concert does not exist." /></div>

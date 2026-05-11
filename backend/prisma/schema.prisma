@@ -25,12 +25,12 @@ model Artist {
   spotifyUrl              String?
   youtubeUrl              String?
   appleMusicUrl           String?
-  instagramFollowers      Int?
-  facebookFollowers       Int?
-  twitterFollowers        Int?
-  spotifyMonthlyListeners Int?
-  youtubeSubscribers      Int?
-  appleMusicListeners     Int?
+  instagramFollowers      BigInt?
+  facebookFollowers       BigInt?
+  twitterFollowers        BigInt?
+  spotifyMonthlyListeners BigInt?
+  youtubeSubscribers      BigInt?
+  appleMusicListeners     BigInt?
   lastUpdated             DateTime?
   created_at              DateTime              @default(now())
   updated_at              DateTime              @updatedAt
@@ -45,7 +45,7 @@ model Artist {
 }
 
 model Genre {
-  id         String        @id @default(cuid())
+  id         Int           @id @default(autoincrement())
   name       String        @unique
   created_at DateTime      @default(now())
   artists    ArtistGenre[]
@@ -55,27 +55,28 @@ model Genre {
 
 model ArtistGenre {
   artistId String
-  genreId  String
+  genreId  Int
+  id       Int    @id @default(autoincrement())
   artist   Artist @relation(fields: [artistId], references: [id], onDelete: Cascade)
   genre    Genre  @relation(fields: [genreId], references: [id], onDelete: Cascade)
 
-  @@id([artistId, genreId])
+  @@unique([artistId, genreId])
   @@map("artist_genres")
 }
 
 model PlatformMetric {
-  id          String       @id @default(cuid())
+  id          String       @id @default(dbgenerated("gen_random_uuid()"))
   artistId    String
   platform    Platform
   metricDate  DateTime     @db.Date
-  followers   Int          @default(0)
-  likes       Int          @default(0)
-  shares      Int          @default(0)
-  comments    Int          @default(0)
-  streams     Int          @default(0)
-  rogDaily    Float?
-  rogWeekly   Float?
-  rogMonthly  Float?
+  followers   BigInt       @default(0)
+  likes       BigInt       @default(0)
+  shares      BigInt       @default(0)
+  comments    BigInt       @default(0)
+  streams     BigInt       @default(0)
+  rogDaily    Decimal?     @db.Decimal(8, 4)
+  rogWeekly   Decimal?     @db.Decimal(8, 4)
+  rogMonthly  Decimal?     @db.Decimal(8, 4)
   source      MetricSource @default(API)
   rawSnapshot Json?
   created_at  DateTime     @default(now())
@@ -88,23 +89,23 @@ model PlatformMetric {
 }
 
 model Concert {
-  id                   String                @id @default(cuid())
+  id                   String                @id @default(dbgenerated("gen_random_uuid()"))
   artistId             String
-  concertName          String?
   concertDate          DateTime              @db.Date
   city                 String
   state                String?
   country              String
-  latitude             Float?
-  longitude            Float?
+  latitude             Decimal?              @db.Decimal(9, 6)
+  longitude            Decimal?              @db.Decimal(9, 6)
   venueName            String?
   capacity             Int?
   ticketsSold          Int                   @default(0)
-  avgTicketPrice       Float?
-  totalRevenue         Float?
+  avgTicketPrice       Decimal?              @db.Decimal(10, 2)
+  totalRevenue         Decimal?              @db.Decimal(14, 2)
   currency             String                @default("INR")
   notes                String?
   created_at           DateTime              @default(now())
+  artistName           String?
   audienceDemographics AudienceDemographic[]
   artist               Artist                @relation(fields: [artistId], references: [id], onDelete: Cascade)
 
@@ -120,7 +121,7 @@ model AudienceDemographic {
   concertId      String?
   dimension      DemographicDimension
   dimensionValue String               @db.VarChar(100)
-  percentage     Float?
+  percentage     Decimal?             @db.Decimal(5, 2)
   absoluteCount  Int?
   sourcePlatform String?              @db.VarChar(100)
   metricDate     DateTime             @db.Date
@@ -159,6 +160,18 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
+model ingestion_jobs {
+  id           String    @id
+  jobType      JobType
+  status       JobStatus @default(PENDING)
+  fileName     String?
+  rowCount     Int       @default(0)
+  errorMessage String?
+  duration     Int?
+  startedAt    DateTime  @default(now())
+  completedAt  DateTime?
+}
+
 enum Platform {
   FACEBOOK
   INSTAGRAM
@@ -185,4 +198,16 @@ enum DemographicDimension {
 enum UserRole {
   ADMIN
   VIEWER
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum JobType {
+  EXCEL_IMPORT
+  PLATFORM_SYNC
 }

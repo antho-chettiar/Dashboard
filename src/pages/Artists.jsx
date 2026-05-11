@@ -321,10 +321,14 @@ function Artists() {
         <EmptyState
           title="Failed to load artists"
           subtitle={error?.response?.data?.message || error.message || 'Please try again'}
-          action={{
-            label: 'Retry',
-            onClick: () => window.location.reload()
-          }}
+          action={
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+            >
+              Retry
+            </button>
+          }
         />
       </div>
     )

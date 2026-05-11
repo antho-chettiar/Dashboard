@@ -57,7 +57,7 @@ export const createConcertSchema = z.object({
   longitude: z.number().min(-180).max(180).optional().nullable(),
   venueName: z.string().max(255).optional().nullable(),
   capacity: z.number().int().positive().optional().nullable(),
-  ticketsSold: z.number().int().nonnegative().optional().nullable(),
+  ticketsSold: z.number().int().nonnegative().optional(),
   avgTicketPrice: z.number().positive().optional().nullable(),
   totalRevenue: z.number().positive().optional().nullable(),
   currency: z.string().length(3).optional().default('INR'),
@@ -105,8 +105,9 @@ export const createAudienceDemographicSchema = z.object({
 // Query parameter schemas
 export const paginationSchema = z.object({
   page: z.string().default('1').transform(val => parseInt(val)),
-  limit: z.string().default('50').transform(val => parseInt(val)).refine(val => val > 0 && val <= 100, {
-    message: 'Limit must be between 1 and 100',
+  // Raised ceiling to 5000 – frontend concert list requests up to 1000 rows
+  limit: z.string().default('50').transform(val => parseInt(val)).refine(val => val > 0 && val <= 5000, {
+    message: 'Limit must be between 1 and 5000',
   }),
 });
 

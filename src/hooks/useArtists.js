@@ -60,7 +60,7 @@ export function useArtists({ search = '', genre = '', limit = 100 } = {}) {
 
     return {
       id: artist.id,
-      name: artist.name,
+      name: artist.artistName,
       type,
       genre,
       nationality: artist.nationality,
