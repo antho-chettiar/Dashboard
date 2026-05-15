@@ -1,6 +1,8 @@
 import { Response } from 'express';
 import { prisma } from '../utils/database';
 import { CreateConcertInput, UpdateConcertInput } from '../validations/zodSchemas';
+import { concertMetrics } from '../services/calculations/concertMetrics';
+
 
 export const concertController = {
   // List concerts with pagination and filters
@@ -153,13 +155,61 @@ export const concertController = {
 
       const concertDate = new Date(input.concertDate);
 
+
+      // const totalRevenue = concertMetrics.calculateRevenue(
+      //   input.ticketsSold || 0,
+      //   Number(input.avgTicketPrice || 0)
+      // );
+      
+      
+
       // Sanitize: strip fields Prisma won't accept and convert null → undefined for non-nullable columns
       const { concertDate: _cd, ...rest } = input as any;
-      const prismaData: any = {
-        ...rest,
-        concertDate,
-        ticketsSold: input.ticketsSold ?? undefined,
-      };
+
+      const ticketsSold = input.ticketsSold || 0;
+const avgTicketPrice = Number(input.avgTicketPrice || 0);
+const capacity = input.capacity || 0;
+
+// const totalRevenue = concertMetrics.calculateRevenue(
+//   ticketsSold,
+//   avgTicketPrice
+// );
+const totalRevenue = concertMetrics.calculateRevenue(
+  ticketsSold,
+        avgTicketPrice
+      );
+
+const sellThroughRate = concertMetrics.calculateSellThroughRate(
+  ticketsSold,
+  capacity
+);
+
+const occupancyRate = concertMetrics.calculateOccupancyRate(
+  ticketsSold,
+  capacity
+);
+
+const remainingTickets = concertMetrics.calculateRemainingTickets(
+  ticketsSold,
+  capacity
+);
+
+const prismaData: any = {
+  ...rest,
+
+  concertDate,
+
+  ticketsSold,
+
+  avgTicketPrice,
+
+  totalRevenue,
+
+  // analytics fields
+  //sellThroughRate,
+  //occupancyRate,
+  //remainingTickets,
+};
 
       const concert = await prisma.concert.create({
         data: prismaData,
@@ -206,10 +256,63 @@ export const concertController = {
         });
       }
 
-      const updateData: any = { ...input };
-      if (input.concertDate) {
-        updateData.concertDate = new Date(input.concertDate);
-      }
+      // const totalRevenue = concertMetrics.calculateConcertRevenue(
+      //   input.ticketsSold || 0,
+      //   Number(input.avgTicketPrice || 0)
+      // );
+      
+      // const totalRevenue = concertMetrics.calculateRevenue(
+      //   input.ticketsSold || 0,
+      //   Number(input.avgTicketPrice || 0)
+      // );
+
+    const ticketsSold =
+  input.ticketsSold ?? existing.ticketsSold ?? 0;
+
+const avgTicketPrice =
+  Number(input.avgTicketPrice ?? existing.avgTicketPrice ?? 0);
+
+const capacity =
+  input.capacity ?? existing.capacity ?? 0;
+
+// const totalRevenue = concertMetrics.calculateRevenue(
+//   ticketsSold,
+//   avgTicketPrice
+// );
+
+  const totalRevenue = concertMetrics.calculateRevenue(
+  ticketsSold,
+  avgTicketPrice
+);
+
+const sellThroughRate = concertMetrics.calculateSellThroughRate(
+  ticketsSold,
+  capacity
+);
+
+const occupancyRate = concertMetrics.calculateOccupancyRate(
+  ticketsSold,
+  capacity
+);
+
+const remainingTickets = concertMetrics.calculateRemainingTickets(
+  ticketsSold,
+  capacity
+);
+
+const updateData: any = {
+  ...input,
+
+  totalRevenue,
+
+  // future analytics fields
+  // sellThroughRate,
+  // occupancyRate,
+  // remainingTickets,
+};
+if (input.concertDate) {
+  updateData.concertDate = new Date(input.concertDate);
+}
 
       const concert = await prisma.concert.update({
         where: { id },
@@ -277,7 +380,7 @@ export const concertController = {
         country: city.country,
         concertCount: city._count.id,
         totalTicketsSold: city._sum.ticketsSold || 0,
-        totalRevenue: city._sum.totalRevenue || 0,
+totalRevenue: Number(city._sum.totalRevenue || 0),
         totalCapacity: city._sum.capacity || 0,
         avgTicketPrice: city._sum.totalRevenue && city._sum.ticketsSold && Number(city._sum.ticketsSold) > 0
           ? Number(city._sum.totalRevenue) / Number(city._sum.ticketsSold)
@@ -320,7 +423,7 @@ export const concertController = {
         country: venue.country,
         concertCount: venue._count.id,
         totalTicketsSold: venue._sum.ticketsSold || 0,
-        totalRevenue: venue._sum.totalRevenue || 0,
+        totalRevenue: Number(venue._sum.totalRevenue || 0),
         avgTicketPrice: venue._sum.totalRevenue && venue._sum.ticketsSold && Number(venue._sum.ticketsSold) > 0
           ? Number(venue._sum.totalRevenue) / Number(venue._sum.ticketsSold)
           : 0,

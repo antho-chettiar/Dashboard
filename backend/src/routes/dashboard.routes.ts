@@ -11,6 +11,26 @@ const router = Router();
  */
 router.get('/kpis', authenticate, dashboardController.getKPIs);
 
+router.get(
+  '/revenue-per-city',
+  dashboardController.getRevenuePerCity
+);
+
+router.get(
+  '/genre-popularity',
+  dashboardController.getGenrePopularity
+);
+
+router.get(
+  '/gender-distribution',
+  dashboardController.getGenderDistribution
+);
+
+router.get(
+  '/age-distribution',
+  dashboardController.getAgeDistribution
+);
+
 /**
  * @route GET /api/v1/dashboard/top-artists
  * @desc Get top performing artists by followers

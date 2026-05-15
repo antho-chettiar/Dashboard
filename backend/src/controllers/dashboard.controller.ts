@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import { prisma, redis } from '../utils/database';
+import dashboardMetricsService from '../services/calculations/dashboardMetrics';
 
 const CACHE_TTL = 60 * 60; // 1 hour
 
@@ -250,6 +251,91 @@ res.status(200).json({
     });
    }
   },
+
+    // Revenue Per City
+  getRevenuePerCity: async (req: any, res: Response) => {
+    try {
+      const data =
+        await dashboardMetricsService.getRevenuePerCity();
+
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (error: any) {
+      console.error('Revenue Per City Error:', error);
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch revenue per city',
+        error: error.message,
+      });
+    }
+  },
+
+  // Genre Popularity
+  getGenrePopularity: async (req: any, res: Response) => {
+    try {
+      const data =
+        await dashboardMetricsService.getGenrePopularity();
+
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (error: any) {
+      console.error('Genre Popularity Error:', error);
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch genre popularity',
+        error: error.message,
+      });
+    }
+  },
+
+  // Gender Distribution
+  getGenderDistribution: async (req: any, res: Response) => {
+    try {
+      const data =
+        await dashboardMetricsService.getGenderDistribution();
+
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (error: any) {
+      console.error('Gender Distribution Error:', error);
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch gender distribution',
+        error: error.message,
+      });
+    }
+  },
+
+  // Age Distribution
+  getAgeDistribution: async (req: any, res: Response) => {
+    try {
+      const data =
+        await dashboardMetricsService.getAgeDistribution();
+
+      res.status(200).json({
+        success: true,
+        data,
+      });
+    } catch (error: any) {
+      console.error('Age Distribution Error:', error);
+
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch age distribution',
+        error: error.message,
+      });
+    }
+  },
+
 };
 
 export default dashboardController;

@@ -1,116 +1,484 @@
 import { Response } from 'express';
 import { prisma } from '../utils/database';
 import { CreateArtistInput, UpdateArtistInput } from '../validations/zodSchemas';
+import { artistMetrics } from '../services/calculations/artistMetrics';
 
 export const artistController = {
   // List artists with pagination, search, genre filter
   list: async (req: any, res: Response) => {
-    try {
-      const {
-        page = 1,
-        limit = 50,
-        search,
-        genre,
-        active = true,
-      } = req.query;
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      search,
+      genre,
+      active = true,
+    } = req.query;
 
-      const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const skip =
+      (parseInt(page as string) - 1) *
+      parseInt(limit as string);
 
-      // Build where clause
-      const where: any = {
-        ...(active !== undefined && { active }),
-      };
+    // Build where clause
+    const where: any = {
+      ...(active !== undefined && { active }),
+    };
 
-      if (search) {
-        where.OR = [
-          { name: { contains: search as string, mode: 'insensitive' } },
-          { nationality: { contains: search as string, mode: 'insensitive' } },
-        ];
-      }
-
-      if (genre) {
-        const genreRecord = await prisma.genre.findFirst({
-          where: { name: { equals: genre as string, mode: 'insensitive' } },
-        });
-        if (genreRecord) {
-          where.genres = { some: { genreId: genreRecord.id } };
-        }
-      }
-
-      const [artists, total] = await Promise.all([
-        prisma.artist.findMany({
-          where,
-          include: {
-            genres: {
-              include: {
-                genre: true,
-              },
-            },
+    if (search) {
+      where.OR = [
+        {
+          artistName: {
+            contains: search as string,
+            mode: 'insensitive',
           },
-          skip,
-          take: parseInt(limit as string),
-          orderBy: { artistName: 'asc' },
-        }),
-        prisma.artist.count({ where }),
-      ]);
+        },
+        {
+          nationality: {
+            contains: search as string,
+            mode: 'insensitive',
+          },
+        },
+      ];
+    }
 
-      res.status(200).json({
-        success: true,
-        data: {
-          artists,
-          pagination: {
-            page: parseInt(page as string),
-            limit: parseInt(limit as string),
-            total,
-            pages: Math.ceil(total / parseInt(limit as string)),
+    if (genre) {
+      const genreRecord = await prisma.genre.findFirst({
+        where: {
+          name: {
+            equals: genre as string,
+            mode: 'insensitive',
           },
         },
       });
-    } catch (error) {
-      throw error;
+
+      if (genreRecord) {
+        where.genres = {
+          some: {
+            genreId: genreRecord.id,
+          },
+        };
+      }
     }
-  },
 
-  // Get single artist by ID
-  getById: async (req: any, res: Response) => {
-    try {
-      const { id } = req.params;
+    const [artists, total] = await Promise.all([
+      prisma.artist.findMany({
+        where,
 
-      const artist = await prisma.artist.findUnique({
-        where: { id },
         include: {
           genres: {
             include: {
               genre: true,
             },
           },
+
+          concerts: true,
+
           platformMetrics: {
-            orderBy: { metricDate: 'desc' },
-            take: 10, // Recent metrics
-          },
-          concerts: {
-            take: 5,
-            orderBy: { concertDate: 'desc' },
+            orderBy: {
+              metricDate: 'desc',
+            },
+
+            take: 20,
           },
         },
-      });
 
-      if (!artist) {
-        return res.status(404).json({
-          success: false,
-          message: 'Artist not found',
-          code: 'ARTIST_NOT_FOUND',
+        skip,
+
+        take: parseInt(limit as string),
+
+        orderBy: {
+          artistName: 'asc',
+        },
+      }),
+
+      prisma.artist.count({ where }),
+    ]);
+
+    const transformedArtists = artists.map((artist: any) => {
+      const totalFollowers =
+        artistMetrics.calculateTotalFollowers({
+          instagram: Number(
+            artist.instagramFollowers || 0
+          ),
+
+          youtube: Number(
+            artist.youtubeSubscribers || 0
+          ),
+
+          spotify: Number(
+            artist.spotifyMonthlyListeners || 0
+          ),
+
+          facebook: Number(
+            artist.facebookFollowers || 0
+          ),
+
+          appleMusic: Number(
+            artist.appleMusicListeners || 0
+          ),
+
+          twitter: Number(
+            artist.twitterFollowers || 0
+          ),
         });
-      }
 
-      res.status(200).json({
-        success: true,
-        data: { artist },
+      const topPlatform =
+        artistMetrics.getTopPlatform({
+          instagram: Number(
+            artist.instagramFollowers || 0
+          ),
+
+          youtube: Number(
+            artist.youtubeSubscribers || 0
+          ),
+
+          spotify: Number(
+            artist.spotifyMonthlyListeners || 0
+          ),
+
+          facebook: Number(
+            artist.facebookFollowers || 0
+          ),
+
+          appleMusic: Number(
+            artist.appleMusicListeners || 0
+          ),
+
+          twitter: Number(
+            artist.twitterFollowers || 0
+          ),
+        });
+
+      const totalRevenue = artist.concerts.reduce(
+        (sum: number, concert: any) =>
+          sum +
+          Number(concert.totalRevenue || 0),
+
+        0
+      );
+
+      const ticketsSold = artist.concerts.reduce(
+        (sum: number, concert: any) =>
+          sum +
+          Number(concert.ticketsSold || 0),
+
+        0
+      );
+
+      const avgROG =
+        artist.platformMetrics.length > 0
+          ? artistMetrics.calculateAverageROG(
+              artist.platformMetrics.map(
+                (m: any) =>
+                  Number(m.rogMonthly || 0)
+              )
+            )
+          : 0;
+
+      const popularityScore =
+        artistMetrics.calculatePopularityScore(
+          totalFollowers,
+          avgROG
+        );
+
+      return {
+        ...artist,
+
+        totalFollowers,
+
+        totalRevenue,
+
+        ticketsSold,
+
+        avgROG,
+
+        popularityScore,
+
+        topPlatform,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+
+      data: {
+        artists: transformedArtists,
+
+        pagination: {
+          page: parseInt(page as string),
+
+          limit: parseInt(limit as string),
+
+          total,
+
+          pages: Math.ceil(
+            total / parseInt(limit as string)
+          ),
+        },
+      },
+    });
+  } catch (error) {
+    throw error;
+  }
+},
+
+  // Get single artist by ID
+  // Get single artist by ID
+getById: async (req: any, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const artist = await prisma.artist.findUnique({
+      where: { id },
+
+      include: {
+        genres: {
+          include: {
+            genre: true,
+          },
+        },
+
+        platformMetrics: {
+          orderBy: {
+            metricDate: 'desc',
+          },
+
+          take: 100,
+        },
+
+        concerts: {
+          orderBy: {
+            concertDate: 'desc',
+          },
+        },
+
+        audienceDemographics: {
+          orderBy: {
+            metricDate: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!artist) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artist not found',
+        code: 'ARTIST_NOT_FOUND',
       });
-    } catch (error) {
-      throw error;
     }
-  },
+
+    // =========================
+    // FOLLOWERS
+    // =========================
+
+    const totalFollowers =
+      artistMetrics.calculateTotalFollowers({
+        instagram: Number(
+          artist.instagramFollowers || 0
+        ),
+
+        youtube: Number(
+          artist.youtubeSubscribers || 0
+        ),
+
+        spotify: Number(
+          artist.spotifyMonthlyListeners || 0
+        ),
+
+        facebook: Number(
+          artist.facebookFollowers || 0
+        ),
+
+        appleMusic: Number(
+          artist.appleMusicListeners || 0
+        ),
+
+        twitter: Number(
+          artist.twitterFollowers || 0
+        ),
+      });
+
+    // =========================
+    // TOP PLATFORM
+    // =========================
+
+    const topPlatform =
+      artistMetrics.getTopPlatform({
+        instagram: Number(
+          artist.instagramFollowers || 0
+        ),
+
+        youtube: Number(
+          artist.youtubeSubscribers || 0
+        ),
+
+        spotify: Number(
+          artist.spotifyMonthlyListeners || 0
+        ),
+
+        facebook: Number(
+          artist.facebookFollowers || 0
+        ),
+
+        appleMusic: Number(
+          artist.appleMusicListeners || 0
+        ),
+
+        twitter: Number(
+          artist.twitterFollowers || 0
+        ),
+      });
+
+    // =========================
+    // REVENUE + TICKETS
+    // =========================
+
+    const totalRevenue = artist.concerts.reduce(
+      (sum: number, concert: any) =>
+        sum + Number(concert.totalRevenue || 0),
+
+      0
+    );
+
+    const totalTicketsSold =
+      artist.concerts.reduce(
+        (sum: number, concert: any) =>
+          sum + Number(concert.ticketsSold || 0),
+
+        0
+      );
+
+    // =========================
+    // AVG ROG
+    // =========================
+
+    const avgROG =
+      artist.platformMetrics.length > 0
+        ? artistMetrics.calculateAverageROG(
+            artist.platformMetrics.map(
+              (metric: any) =>
+                Number(metric.rogMonthly || 0)
+            )
+          )
+        : 0;
+
+    // =========================
+    // POPULARITY SCORE
+    // =========================
+
+    const popularityScore =
+      artistMetrics.calculatePopularityScore(
+        totalFollowers,
+        avgROG
+      );
+
+    // =========================
+    // PLATFORM BREAKDOWN
+    // =========================
+
+    const platformBreakdown = {
+      instagram: Number(
+        artist.instagramFollowers || 0
+      ),
+
+      youtube: Number(
+        artist.youtubeSubscribers || 0
+      ),
+
+      spotify: Number(
+        artist.spotifyMonthlyListeners || 0
+      ),
+
+      facebook: Number(
+        artist.facebookFollowers || 0
+      ),
+
+      appleMusic: Number(
+        artist.appleMusicListeners || 0
+      ),
+
+      twitter: Number(
+        artist.twitterFollowers || 0
+      ),
+    };
+
+    // =========================
+    // GROWTH TREND
+    // =========================
+
+    const growthTrend = artist.platformMetrics.map(
+      (metric: any) => ({
+        platform: metric.platform,
+
+        metricDate: metric.metricDate,
+
+        followers: Number(metric.followers || 0),
+
+        rogDaily: Number(metric.rogDaily || 0),
+
+        rogWeekly: Number(metric.rogWeekly || 0),
+
+        rogMonthly: Number(metric.rogMonthly || 0),
+      })
+    );
+
+    // =========================
+    // DEMOGRAPHICS
+    // =========================
+
+    const demographics =
+      artist.audienceDemographics.map(
+        (demo: any) => ({
+          dimension: demo.dimension,
+
+          value: demo.dimensionValue,
+
+          percentage: Number(
+            demo.percentage || 0
+          ),
+
+          absoluteCount:
+            demo.absoluteCount || 0,
+        })
+      );
+
+    const transformedArtist = {
+      ...artist,
+
+      totalFollowers,
+
+      totalRevenue,
+
+      totalTicketsSold,
+
+      avgROG,
+
+      popularityScore,
+
+      topPlatform,
+
+      platformBreakdown,
+
+      growthTrend,
+
+      demographics,
+
+      concertsOnRecord:
+        artist.concerts.length,
+    };
+
+    res.status(200).json({
+      success: true,
+
+      data: {
+        artist: transformedArtist,
+      },
+    });
+  } catch (error) {
+    throw error;
+  }
+},
 
   // Create artist (admin only)
   create: async (req: any, res: Response) => {
@@ -364,6 +732,197 @@ export const artistController = {
       throw error;
     }
   },
+
+/**
+ * Full Artist Analytics Card
+ */
+getArtistAnalyticsCard: async (
+  req: any,
+  res: Response
+) => {
+  try {
+    const { artistId } = req.params;
+
+    const artist = await prisma.artist.findUnique({
+      where: { id: artistId },
+
+      include: {
+        concerts: true,
+
+        platformMetrics: {
+          orderBy: {
+            metricDate: 'desc',
+          },
+        },
+
+        audienceDemographics: true,
+
+        genres: {
+          include: {
+            genre: true,
+          },
+        },
+      },
+    });
+
+    if (!artist) {
+      return res.status(404).json({
+        success: false,
+        message: 'Artist not found',
+      });
+    }
+
+    const totalRevenue =
+      artist.concerts.reduce(
+        (sum, concert) =>
+          sum +
+          Number(
+            concert.totalRevenue || 0
+          ),
+
+        0
+      );
+
+    const ticketsSold =
+      artist.concerts.reduce(
+        (sum, concert) =>
+          sum +
+          Number(
+            concert.ticketsSold || 0
+          ),
+
+        0
+      );
+
+    const totalFollowers =
+      Number(
+        artist.instagramFollowers || 0
+      ) +
+      Number(
+        artist.youtubeSubscribers || 0
+      ) +
+      Number(
+        artist.spotifyMonthlyListeners || 0
+      ) +
+      Number(
+        artist.facebookFollowers || 0
+      ) +
+      Number(
+        artist.appleMusicListeners || 0
+      );
+
+    const latestMetrics =
+      artist.platformMetrics.slice(0, 30);
+
+    const avgRoG =
+      latestMetrics.length > 0
+        ? latestMetrics.reduce(
+            (sum, metric) =>
+              sum +
+              Number(
+                metric.rogMonthly || 0
+              ),
+
+            0
+          ) / latestMetrics.length
+        : 0;
+
+    const platformBreakdown = {
+      instagram: Number(
+        artist.instagramFollowers || 0
+      ),
+
+      youtube: Number(
+        artist.youtubeSubscribers || 0
+      ),
+
+      spotify: Number(
+        artist.spotifyMonthlyListeners || 0
+      ),
+
+      facebook: Number(
+        artist.facebookFollowers || 0
+      ),
+
+      appleMusic: Number(
+        artist.appleMusicListeners || 0
+      ),
+    };
+
+    const topPlatform =
+      Object.entries(platformBreakdown).sort(
+        (a, b) => b[1] - a[1]
+      )[0]?.[0] || null;
+
+    const demographics =
+      artist.audienceDemographics;
+
+    return res.status(200).json({
+      success: true,
+
+      data: {
+        artist: {
+          id: artist.id,
+
+          artistName:
+            artist.artistName,
+
+          photoUrl: artist.photoUrl,
+
+          genres:
+            artist.genres.map(
+              (g) => g.genre.name
+            ),
+
+          age: artist.age,
+
+          nationality:
+            artist.nationality,
+        },
+
+        analytics: {
+          growthPercentage:
+            Number(avgRoG.toFixed(2)),
+
+          totalRevenue,
+
+          ticketsSold,
+
+          concerts:
+            artist.concerts.length,
+
+          totalFollowers,
+
+          topPlatform,
+
+          platformBreakdown,
+
+          growthTrend:
+            latestMetrics.map(
+              (metric) => ({
+                date:
+                  metric.metricDate,
+
+                platform:
+                  metric.platform,
+
+                rog:
+                  metric.rogMonthly,
+              })
+            ),
+
+          concertList:
+            artist.concerts,
+
+          demographics,
+        },
+      },
+    });
+  } catch (error) {
+    throw error;
+  }
+},
+
 };
 
 export default artistController;

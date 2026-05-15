@@ -11,6 +11,13 @@ import PieChart from '../components/charts/PieChart'
 import RoGBadge from '../components/ui/RoGBadge'
 import useFilterStore from '../store/useFilterStore'
 import { useDashboardData } from '../hooks/useDashboardData'
+import {
+  useDashboardKPIs,
+  useRevenuePerCity,
+  useAgeDistribution,
+  useGenderDistribution,
+  useGenrePopularity,
+} from '../hooks/useAnalytics'
 import { formatNumber, formatCurrency, formatDate } from '../utils/formatters'
 import ErrorBoundary from '../components/ui/ErrorBoundary'
 
@@ -34,22 +41,73 @@ function Dashboard() {
 
   const { data, isLoading, error } = useDashboardData()
 
+  const dashboardKPIs =
+  useDashboardKPIs()
+
+  const revenueCities =
+  useRevenuePerCity()
+
+  const ageDistribution =
+  useAgeDistribution()
+
+  const genderDistribution =
+  useGenderDistribution()
+
+  const genrePopularity =
+  useGenrePopularity()
+
   const {
     kpis = {},
     topArtistsPool = [],
     allConcerts = [],
     allArtists = [],
     followerTrends = [],
-    genres: genreData = [],
-    ageData = [],
-    genderData = [],
+    genres: localGenreData = [],
     artistIdToType = {},
   } = data || {}
+
+const ageData =
+  ageDistribution?.data?.data?.map((item) => ({
+    name: item.ageGroup,
+    value: item.percentage,
+  })) || []
+
+const genderData =
+  genderDistribution?.data?.data?.map((item) => ({
+    name: item.gender,
+    value: item.percentage,
+  })) || []
+
+const genreData =
+  genrePopularity?.data?.data?.map((item) => ({
+    genre: item.genre,
+    streams: item.streams,
+  })) || localGenreData
 
   const safeTopArtists = topArtistsPool || []
   const safeConcerts = allConcerts || []
   const safeArtists = allArtists || []
-  const safeTrends = followerTrends || []
+  const safeTrends = data?.followerTrends || []
+
+  const normalizedTrends =
+  safeTrends.map((item) => ({
+    date: item.date,
+
+    instagram:
+      item.instagram ||
+      item.followers ||
+      0,
+
+    youtube:
+      item.youtube ||
+      item.likes ||
+      0,
+
+    spotify:
+      item.spotify ||
+      item.streams ||
+      0,
+  }))
 
   const marketLabel = artistType === 'indian'
     ? '🇮🇳 Indian'
@@ -96,16 +154,13 @@ function Dashboard() {
       : allConcerts
   }, [allConcerts, artistIdToType, artistType])
 
-  // M2: fix NaN accumulation — guard against null/undefined total_revenue
-  const revenueByCity = useMemo(() => {
-    if (!filteredConcerts.length) return []
-    const grouped = filteredConcerts.reduce((acc, c) => {
-      if (!acc[c.city]) acc[c.city] = { name: c.city, revenue: 0 }
-      acc[c.city].revenue += (c.total_revenue || 0)  // M2: was c.total_revenue (NaN if null)
-      return acc
-    }, {})
-    return Object.values(grouped).sort((a, b) => b.revenue - a.revenue)
-  }, [filteredConcerts])
+  const revenueByCity =
+  revenueCities?.data?.data?.map(
+    (item) => ({
+      name: item.city,
+      revenue: item.revenue,
+    })
+  ) || []
 
   const KPI_CONFIG = [
     {
@@ -128,7 +183,9 @@ function Dashboard() {
     },
     {
       title: 'Tickets Sold YTD',
-      value: formatNumber(kpis?.ticketsSoldYTD || 0),
+      value: formatNumber(
+        dashboardKPIs?.data?.data?.ticketsSoldYTD || 0
+      ),
       subtitle: 'Year to date',
       rog: 0,
       icon: Ticket,
@@ -137,7 +194,9 @@ function Dashboard() {
     },
     {
       title: 'Revenue YTD',
-      value: formatCurrency(kpis?.revenueYTD || 0),
+      value: formatCurrency(
+        dashboardKPIs?.data?.data?.revenueYTD || 0
+      ),
       subtitle: 'Year to date',
       rog: 0,
       icon: DollarSign,
@@ -146,9 +205,11 @@ function Dashboard() {
     },
     {
       title: 'Avg Social RoG',
-      value: `${kpis?.avgRoG || 0}%`,
+      value: `${
+        dashboardKPIs?.data?.data?.avgRoG || 0
+      }%`,
       subtitle: 'All platforms',
-      rog: kpis?.avgRoG || 0,
+      rog: dashboardKPIs?.data?.data?.avgRoG || 0,
       icon: TrendingUp,
       accentColor: '#A78BFA',
       delay: 320,
@@ -219,7 +280,7 @@ function Dashboard() {
                 </span>
               ))}
             </div>
-            <LineChart data={safeTrends} xKey="date" lines={TREND_LINES} height={260} />
+            <LineChart data={normalizedTrends} xKey="date" lines={TREND_LINES} height={260} />
           </ChartContainer>
 
           {/* Top 10 Artists */}
@@ -401,15 +462,15 @@ function Dashboard() {
                         {c.artist}
                       </p>
                       <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
-                        {c.city} · {formatDate(c.date)}
+                        {c.city} · {formatDate(c.concertDate)}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-bold font-display" style={{ color: 'var(--accent-gold)' }}>
-                        {formatCurrency(c.total_revenue)}
+                        {formatCurrency(c.totalRevenue)}
                       </p>
                       <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                        {formatNumber(c.tickets_sold)} tickets
+                        {formatNumber(c.ticketsSold)} tickets
                       </p>
                     </div>
                   </div>

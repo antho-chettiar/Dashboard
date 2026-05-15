@@ -75,4 +75,9 @@ router.get('/:id/concerts', artistController.getConcerts);
  */
 router.get('/:id/demographics', artistController.getDemographics);
 
+router.get(
+  '/:artistId/analytics-card',
+  artistController.getArtistAnalyticsCard
+);
+
 export default router;

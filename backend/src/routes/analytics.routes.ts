@@ -46,4 +46,14 @@ router.get('/demographics/geo', authenticate, analyticsController.getDemographic
  */
 router.get('/genres', authenticate, analyticsController.getGenres);
 
+router.get(
+  '/profitability-predictor',
+  analyticsController.getProfitabilityPredictor
+);
+
+router.get(
+  '/compare-artists',
+  analyticsController.compareArtists
+);
+
 export default router;

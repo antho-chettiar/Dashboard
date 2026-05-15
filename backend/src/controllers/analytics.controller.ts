@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { prisma, redis } from '../utils/database';
 import { Decimal } from '@prisma/client/runtime/library';
+import { analysisMetrics } from '../services/calculations/analysisMetrics';
 
 const CACHE_TTL = 60 * 60; // 1 hour
 
@@ -320,6 +321,77 @@ res.status(200).json({
       throw error;
     }
   },
+  
+/**
+ * Profitability Predictor
+ */
+getProfitabilityPredictor: async (
+  req: any,
+  res: Response
+) => {
+  try {
+    const { artistId, city } = req.query;
+
+    if (!artistId || !city) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'artistId and city are required',
+      });
+    }
+
+    const prediction =
+      await analysisMetrics.predictArtistCityPerformance(
+        artistId,
+        city
+      );
+
+    return res.status(200).json({
+      success: true,
+      data: prediction,
+    });
+  } catch (error) {
+    throw error;
+  }
+},
+
+/**
+ * Compare Artists
+ */
+compareArtists: async (
+  req: any,
+  res: Response
+) => {
+  try {
+    const {
+      artist1Id,
+      artist2Id,
+    } = req.query;
+
+    if (!artist1Id || !artist2Id) {
+      return res.status(400).json({
+        success: false,
+        message:
+          'artist1Id and artist2Id are required',
+      });
+    }
+
+    const comparison =
+      await analysisMetrics.compareArtists(
+        artist1Id,
+        artist2Id
+      );
+
+    return res.status(200).json({
+      success: true,
+      data: comparison,
+    });
+  } catch (error) {
+    throw error;
+  }
+},
+
+
 };
 
 export default analyticsController;
